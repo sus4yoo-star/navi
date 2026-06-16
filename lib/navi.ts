@@ -60,9 +60,10 @@ export async function registerPush() {
   });
   const json = sub.toJSON();
   const { data: { user } } = await supabase.auth.getUser();
-  await supabase.from("push_subscriptions").insert({
-    user_id: user!.id, subscription: json, endpoint: json.endpoint,
-  });
+  await supabase.from("push_subscriptions").upsert(
+    { user_id: user!.id, subscription: json, endpoint: json.endpoint },
+    { onConflict: "endpoint" }
+  );
   return { ok: true as const };
 }
 

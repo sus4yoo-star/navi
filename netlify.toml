@@ -1,0 +1,7 @@
+# Netlify — main 푸시 시 자동배포. @netlify/plugin-nextjs가 Next.js를 자동 감지·빌드.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
