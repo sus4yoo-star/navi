@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     title: "나비",
   },
   icons: {
-    icon: "/icon-192.png",
+    icon: "/icon.svg",
     apple: "/icon-192.png",
   },
 };

@@ -25,16 +25,20 @@ export async function POST(req: NextRequest) {
   }
 
   // 유저 토큰을 단 anon 클라이언트 → RLS가 본인 user_id만 허용
+  // 서버라 저장된 세션이 없으므로 persistSession은 끄고, getUser엔 토큰을 직접 넘긴다
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    }
   );
 
   const {
     data: { user },
     error: userErr,
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser(token);
   if (userErr || !user) {
     return NextResponse.json({ error: "세션이 만료됐어요." }, { status: 401 });
   }

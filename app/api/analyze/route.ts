@@ -159,8 +159,13 @@ export async function POST(req: NextRequest) {
 
   const raw = msg.content.filter((b) => b.type === "text").map((b: any) => b.text).join("\n");
   const json = extractJson(raw);
-  if (!json)
-    return NextResponse.json({ error: "분석 결과 파싱 실패", raw }, { status: 500 });
+  if (!json) {
+    console.error("analyze: JSON 파싱 실패", raw.slice(0, 500));
+    return NextResponse.json(
+      { error: "분석 결과를 읽지 못했어요. 다시 시도해 주세요." },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ video, channel, analysis: json });
 }

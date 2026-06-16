@@ -25,10 +25,10 @@ export type Profile = {
 export async function saveProfile(p: Profile) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("로그인이 필요해요");
+  // upsert: 가입 트리거가 행을 만들지 못한 경우에도 스스로 복구 (update면 0행 무음 실패)
   const { error } = await supabase
     .from("profiles")
-    .update({ ...p, email: user.email })
-    .eq("id", user.id);
+    .upsert({ id: user.id, email: user.email, ...p }, { onConflict: "id" });
   if (error) throw error;
 }
 
@@ -50,13 +50,16 @@ export async function registerPush() {
   if (iosNeedsInstall())
     return { ok: false, reason: "ios-needs-install" as const }; // 홈 화면 추가 안내
 
+  const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC;
+  if (!vapid) return { ok: false, reason: "unsupported" as const }; // 키 미설정이면 조용히 패스
+
   const perm = await Notification.requestPermission();
   if (perm !== "granted") return { ok: false, reason: "denied" as const };
 
   const reg = await navigator.serviceWorker.register("/sw.js");
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC!),
+    applicationServerKey: urlBase64ToUint8Array(vapid),
   });
   const json = sub.toJSON();
   const { data: { user } } = await supabase.auth.getUser();

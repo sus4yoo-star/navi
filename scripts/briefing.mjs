@@ -59,6 +59,8 @@ async function buildBriefing(p, cs, recent, trends) {
     : "(채널 현황 조회 실패)";
   const msg = await anthropic.messages.create({
     model: "claude-sonnet-4-6", max_tokens: 4096, system: SYSTEM,
+    // 웹 검색으로 similar_hit·crossover_hit의 실제 영상·출처를 근거 있게 — 지어내기 방지(절대원칙 3)
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }],
     messages: [{ role: "user", content: `[채널 프로필]\n니치: ${p.niche}\n톤: ${p.tone}\n목적: ${p.purpose}\n지향: ${p.aspiration || "(없음)"}\n\n[내 채널 현황 — 오늘 새로 읽음]\n${channelBlock}\n\n[니치 트렌드 데이터]\n${JSON.stringify(trends)}` }],
   });
   return parseJson(msg.content.filter((b) => b.type === "text").map((b) => b.text).join("\n"));
@@ -73,10 +75,12 @@ async function sendEmail(to, b) {
     <p><b>이번 주 방향</b><br>${b.weekly || ""}</p>
     <p><a href="${process.env.SITE_URL}/today" style="color:#4B43D6">앱에서 전체 보기 →</a></p>
   </div>`;
-  await fetch("https://api.resend.com/emails", {
+  if (!process.env.RESEND_API_KEY) { console.warn("email skip: RESEND_API_KEY 없음"); return; }
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST", headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from: "나비 <today@theamov.com>", to, subject: "☀️ 오늘의 나비 브리핑", html }),
   });
+  if (!res.ok) console.error("email fail:", res.status, await res.text().catch(() => ""));
 }
 async function sendPush(userId, b) {
   const { data: subs } = await sb.from("push_subscriptions").select("*").eq("user_id", userId);

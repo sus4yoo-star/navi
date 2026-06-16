@@ -37,9 +37,9 @@ export default function Today() {
   const [b, setB] = useState<Briefing | null>(null);
 
   const [iosBanner, setIosBanner] = useState(false);
-  const [pushState, setPushState] = useState<"idle" | "on" | "busy" | "unavailable">(
-    "idle"
-  );
+  const [pushState, setPushState] = useState<
+    "idle" | "on" | "busy" | "denied" | "unsupported"
+  >("idle");
 
   useEffect(() => {
     (async () => {
@@ -76,7 +76,8 @@ export default function Today() {
     else if (res.reason === "ios-needs-install") {
       setPushState("idle");
       setIosBanner(true);
-    } else setPushState("unavailable");
+    } else if (res.reason === "denied") setPushState("denied");
+    else setPushState("unsupported");
   }
 
   const Insp = ({
@@ -137,7 +138,10 @@ export default function Today() {
             )}
             {pushState === "busy" && <span className="nv-mono nv-muted">알림 설정 중…</span>}
             {pushState === "on" && <span className="nv-mono nv-muted">알림 켜짐</span>}
-            {pushState === "unavailable" && (
+            {pushState === "denied" && (
+              <span className="nv-mono nv-muted">브라우저 설정에서 알림을 허용해 주세요</span>
+            )}
+            {pushState === "unsupported" && (
               <span className="nv-mono nv-muted">이 브라우저는 알림 미지원</span>
             )}
           </div>
