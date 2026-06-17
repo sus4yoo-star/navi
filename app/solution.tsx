@@ -61,6 +61,25 @@ function delCache(key: string) {
 }
 const today = () => new Date().toISOString().slice(0, 10);
 
+// 백그라운드 작업이 끝날 때까지 상태를 주기적으로 확인(폴링, 최대 약 5분).
+// done이면 작업 행 전체({analysis, video, channel})를 반환. shouldGo()가 false면 중단.
+async function pollJob(
+  id: string,
+  shouldGo?: () => boolean
+): Promise<{ analysis: any; video?: any; channel?: any } | null> {
+  const started = Date.now();
+  while (Date.now() - started < 5 * 60 * 1000) {
+    await new Promise((r) => setTimeout(r, 3500));
+    if (shouldGo && !shouldGo()) return null;
+    const r = await fetch(`/api/analyze/status?id=${id}`);
+    const j = await r.json().catch(() => null);
+    if (!j) continue;
+    if (j.status === "done") return j;
+    if (j.status === "error") throw new Error(j.error || "처리하지 못했어요.");
+  }
+  throw new Error("처리가 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.");
+}
+
 // ── 원탭 도구: 문구를 브랜드 톤 카드 이미지(PNG)로 저장 ──
 const FONT = `-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif`;
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number) {
@@ -463,25 +482,6 @@ export default function Solution({
     }
   }
 
-  // 백그라운드 작업이 끝날 때까지 상태를 주기적으로 확인(폴링, 최대 약 5분).
-  // done이면 작업 행 전체({analysis, video, channel})를 반환. shouldGo()가 false면 중단.
-  async function pollJob(
-    id: string,
-    shouldGo?: () => boolean
-  ): Promise<{ analysis: any; video?: any; channel?: any } | null> {
-    const started = Date.now();
-    while (Date.now() - started < 5 * 60 * 1000) {
-      await new Promise((r) => setTimeout(r, 3500));
-      if (shouldGo && !shouldGo()) return null;
-      const r = await fetch(`/api/analyze/status?id=${id}`);
-      const j = await r.json().catch(() => null);
-      if (!j) continue;
-      if (j.status === "done") return j;
-      if (j.status === "error") throw new Error(j.error || "처리하지 못했어요.");
-    }
-    throw new Error("처리가 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.");
-  }
-
   return (
     <>
       <style>{css}</style>
@@ -548,32 +548,7 @@ export default function Solution({
               )}
 
               {idea.thumbnail && (idea.thumbnail.concept || idea.thumbnail.text) && (
-                <div className="nv-thumbsug">
-                  <p className="nv-rp-h">썸네일 예시</p>
-                  {idea.thumbnail.concept && (
-                    <p className="nv-reason" style={{ margin: 0 }}>{idea.thumbnail.concept}</p>
-                  )}
-                  {idea.thumbnail.text && (
-                    <div className="nv-mono nv-copy-line" style={{ marginTop: 4 }}>
-                      문구: {idea.thumbnail.text}
-                    </div>
-                  )}
-                  {idea.thumbnail.text && (
-                    <button
-                      className="nv-detbtn"
-                      style={{ marginTop: 9 }}
-                      onClick={() =>
-                        downloadTextCard(idea.thumbnail!.text!, {
-                          label: "썸네일 예시",
-                          ratio: "16:9",
-                          filename: "navi-썸네일",
-                        })
-                      }
-                    >
-                      썸네일 이미지 저장
-                    </button>
-                  )}
-                </div>
+                <IdeaThumb idea={idea} niche={niche} />
               )}
 
               <div className="nv-short-foot">
@@ -946,6 +921,77 @@ function ShortCard({ s }: { s: Short }) {
   );
 }
 
+// 기획안 한 건의 썸네일: 예시 문구 + AI 이미지 시안 생성(백그라운드+폴링)
+function IdeaThumb({ idea, niche }: { idea: Idea; niche?: string }) {
+  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+  const [url, setUrl] = useState<string>();
+  async function gen() {
+    setState("busy");
+    try {
+      const { id } = await callJson("/api/thumbnail/start", {
+        title: idea.title,
+        concept: idea.thumbnail?.concept,
+        text: idea.thumbnail?.text,
+        niche,
+      });
+      const job = await pollJob(id);
+      const img = job?.analysis?.image;
+      if (!img) throw new Error("no image");
+      setUrl(img);
+      setState("done");
+    } catch {
+      setState("error");
+    }
+  }
+  return (
+    <div className="nv-thumbsug">
+      <p className="nv-rp-h">썸네일 예시</p>
+      {idea.thumbnail?.concept && (
+        <p className="nv-reason" style={{ margin: 0 }}>{idea.thumbnail.concept}</p>
+      )}
+      {idea.thumbnail?.text && (
+        <div className="nv-mono nv-copy-line" style={{ marginTop: 4 }}>문구: {idea.thumbnail.text}</div>
+      )}
+      {url && (
+        <div style={{ marginTop: 10 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt="썸네일 시안" className="nv-thumbimg" />
+          <a
+            className="nv-detbtn"
+            style={{ display: "inline-block", marginTop: 8, textDecoration: "none" }}
+            href={url}
+            download="navi-썸네일.png"
+          >
+            이미지 저장
+          </a>
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+        <button className="nv-detbtn" onClick={gen} disabled={state === "busy"}>
+          {state === "busy" ? "그리는 중… (~30초)" : url ? "다시 생성" : "AI 썸네일 생성"}
+        </button>
+        {idea.thumbnail?.text && (
+          <button
+            className="nv-detbtn"
+            onClick={() =>
+              downloadTextCard(idea.thumbnail!.text!, {
+                label: "썸네일 문구",
+                ratio: "16:9",
+                filename: "navi-썸네일문구",
+              })
+            }
+          >
+            문구 카드 저장
+          </button>
+        )}
+      </div>
+      {state === "error" && (
+        <p className="nv-err" style={{ marginTop: 8 }}>썸네일 생성에 실패했어요. 다시 시도해 주세요.</p>
+      )}
+    </div>
+  );
+}
+
 function Deep({ a }: { a: Analysis }) {
   // 서버가 '센 것부터' 정렬해 보내므로 그 순서를 그대로 유지한다.
   const shorts = a.shorts || [];
@@ -1174,6 +1220,7 @@ const css = `
 .nv-evi-q{font-size:12.5px;color:${C.sub};margin:4px 0 0;padding-left:10px;border-left:2px solid ${C.line};line-height:1.55}
 .nv-refpoints{margin-top:11px;padding-top:11px;border-top:1px dashed ${C.line}}
 .nv-thumbsug{margin-top:11px;padding-top:11px;border-top:1px dashed ${C.line}}
+.nv-thumbimg{width:100%;border-radius:10px;border:1px solid ${C.line};display:block}
 .nv-rp-h{font-size:11px;color:${C.faint};letter-spacing:.08em;font-weight:700;margin:0 0 7px;text-transform:uppercase}
 .nv-replan{padding:5px 12px;background:transparent;border:1px solid ${C.accent};border-radius:999px;color:${C.accent};font-size:12px;font-weight:700;cursor:pointer}
 .nv-replan:disabled{opacity:.5;cursor:default}
