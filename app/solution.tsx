@@ -320,8 +320,8 @@ export default function Solution({
     return () => clearInterval(t);
   }, [briefLoading]);
   const LOAD_MSGS = [
-    "비슷한 결의 지금 활발한 채널들을 정찰하는 중…",
-    "그 채널들의 시청자 반응(댓글)을 읽는 중…",
+    "영감을 줄 채널들을 바깥에서 찾는 중…",
+    "그 채널들의 기법과 시청자 반응을 읽는 중…",
     "내 채널의 현재 위치를 진단하는 중…",
     "이번 주 만들 영상을 기획하는 중…",
     "거의 다 됐어요. 정리하는 중…",
@@ -543,9 +543,9 @@ export default function Solution({
             <div>
               <div className="nv-hero-eyebrow">
                 <Wing size={15} />
-                <span className="nv-mono">니치 레이더 · 바깥부터 본다</span>
+                <span className="nv-mono">영감 레이더 · 바깥에서 배운다</span>
               </div>
-              <h2 className="nv-hero-title">비슷한 채널은 지금 이렇게 한다</h2>
+              <h2 className="nv-hero-title">이 채널에서 영감을 훔쳐오세요</h2>
             </div>
             {channel && (brief || briefErr) && (
               <button
@@ -634,7 +634,7 @@ export default function Solution({
                       <p className="nv-reason" style={{ margin: "10px 0 0" }}>{c.analysis}</p>
                     )}
                     {c.apply && (
-                      <div className="nv-firsthook" style={{ marginTop: 8 }}>내 채널엔 · {c.apply}</div>
+                      <div className="nv-firsthook" style={{ marginTop: 8 }}>이렇게 차용 · {c.apply}</div>
                     )}
                   </div>
                 ))}
