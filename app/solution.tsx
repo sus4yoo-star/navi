@@ -46,6 +46,7 @@ type Sol = {
   longform_solution?: { point: string; why: string }[];
   next_videos?: { title: string; format: string; angle: string; hook: string }[];
   this_week?: string[];
+  benchmark?: { name: string; summary: string; learn: string[] } | null;
 };
 type Analysis = {
   good?: string[];
@@ -62,11 +63,13 @@ export default function Solution({
   tone,
   purpose,
   aspiration,
+  benchmarkUrl,
 }: {
   channelUrl: string;
   tone?: string;
   purpose?: string;
   aspiration?: string;
+  benchmarkUrl?: string;
 }) {
   const [loading, setLoading] = useState(false); // 1단계: 목록
   const [solLoading, setSolLoading] = useState(false); // 2단계: 진단
@@ -111,6 +114,7 @@ export default function Solution({
         tone,
         purpose,
         aspiration,
+        benchmarkUrl,
       });
       setSol(s.solution || null);
     } catch (e: any) {
@@ -118,7 +122,7 @@ export default function Solution({
     } finally {
       setSolLoading(false);
     }
-  }, [channelUrl, tone, purpose, aspiration]);
+  }, [channelUrl, tone, purpose, aspiration, benchmarkUrl]);
 
   useEffect(() => {
     run();
@@ -301,6 +305,26 @@ export default function Solution({
           ))}
         </div>
       )}
+
+      {sol?.benchmark && (
+        <div className="nv-card nv-card-accent">
+          <span className="nv-mono nv-eyebrow nv-eyebrow-accent">
+            닮고 싶은 채널과 비교
+          </span>
+          <p className="nv-hook" style={{ fontSize: 16, margin: "9px 0 5px" }}>
+            {sol.benchmark.name}
+          </p>
+          <p className="nv-reason" style={{ marginBottom: 10 }}>
+            {sol.benchmark.summary}
+          </p>
+          {(sol.benchmark.learn || []).map((t, i) => (
+            <div key={i} className="nv-fb nv-fb-good">
+              <span className="nv-fb-mark">＋</span>
+              {t}
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
@@ -430,7 +454,9 @@ const css = `
 .nv-ghost{background:transparent;border:1.5px solid ${C.line};color:${C.sub};border-radius:9px;padding:8px 13px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .14s}
 .nv-ghost:hover{border-color:${C.sub};color:${C.ink}}
 .nv-card{background:#fff;border:1px solid ${C.line};border-radius:14px;padding:20px 22px;margin-bottom:14px;box-shadow:0 1px 2px rgba(20,23,28,.04),0 8px 24px -18px rgba(20,23,28,.18)}
+.nv-card-accent{background:#FBFBFE;border-color:${C.accent};box-shadow:0 8px 28px -16px rgba(75,67,214,.4)}
 .nv-eyebrow{font-size:11px;letter-spacing:.16em;color:${C.faint};font-weight:600;text-transform:uppercase}
+.nv-eyebrow-accent{color:${C.accent}}
 .nv-tag{display:inline-block;background:${C.canvas};border:1px solid ${C.line};border-radius:7px;padding:5px 10px;font-size:12.5px;margin:0 6px 6px 0;color:${C.sub}}
 .nv-badge{display:inline-block;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:6px;margin-right:8px;vertical-align:middle}
 .nv-badge.s{background:#EAF7F0;color:#1F9E6B;border:1px solid #BFE9D5}

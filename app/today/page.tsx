@@ -23,6 +23,7 @@ type Profile = {
   tone?: string;
   purpose?: string;
   aspiration?: string;
+  benchmark_url?: string;
 };
 
 export default function Today() {
@@ -46,7 +47,7 @@ export default function Today() {
       }
       const { data: p } = await supabase
         .from("profiles")
-        .select("channel_url, niche, tone, purpose, aspiration")
+        .select("channel_url, niche, tone, purpose, aspiration, benchmark_url")
         .eq("id", user.id)
         .maybeSingle();
       if (!p?.channel_url) {
@@ -59,6 +60,7 @@ export default function Today() {
         tone: p.tone || undefined,
         purpose: p.purpose || undefined,
         aspiration: p.aspiration || undefined,
+        benchmark_url: p.benchmark_url || undefined,
       });
       setPhase("ready");
       if (iosNeedsInstall()) setIosBanner(true);
@@ -163,6 +165,7 @@ export default function Today() {
             tone={profile.tone}
             purpose={profile.purpose}
             aspiration={profile.aspiration}
+            benchmarkUrl={profile.benchmark_url}
           />
         )}
       </div>

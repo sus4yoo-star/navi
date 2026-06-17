@@ -13,6 +13,55 @@ export const maxDuration = 60;
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 const MODEL = "claude-sonnet-4-6";
+const YT_KEY = process.env.YOUTUBE_API_KEY;
+
+// 워너비(벤치마크) 채널 간단 조회 — 비교 근거용
+async function getBenchmark(url: string) {
+  if (!YT_KEY || !url) return null;
+  let q: string | null = null;
+  try {
+    const p = new URL(url).pathname.split("/").filter(Boolean);
+    if (p[0]?.startsWith("@")) q = `forHandle=${encodeURIComponent(p[0])}`;
+    else if (p[0] === "channel") q = `id=${p[1]}`;
+  } catch {
+    return null;
+  }
+  if (!q) return null;
+  try {
+    const cj = await (
+      await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&${q}&key=${YT_KEY}`
+      )
+    ).json();
+    const c = cj.items?.[0];
+    if (!c) return null;
+    const uploads = c.contentDetails.relatedPlaylists.uploads;
+    const pl = await (
+      await fetch(
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=6&playlistId=${uploads}&key=${YT_KEY}`
+      )
+    ).json();
+    const ids = (pl.items || []).map((i: any) => i.contentDetails.videoId).join(",");
+    let recent: string[] = [];
+    if (ids) {
+      const vj = await (
+        await fetch(
+          `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids}&key=${YT_KEY}`
+        )
+      ).json();
+      recent = (vj.items || []).map(
+        (x: any) => `"${x.snippet.title}" (${Number(x.statistics?.viewCount ?? 0).toLocaleString()}회)`
+      );
+    }
+    return {
+      name: c.snippet.title as string,
+      subscribers: Number(c.statistics.subscriberCount ?? 0),
+      recent,
+    };
+  } catch {
+    return null;
+  }
+}
 
 const SYSTEM = `당신은 '나비', 한국 1인 유튜브 크리에이터의 AI 성장 PD입니다.
 '최근 업로드 실데이터'(제목·형식·조회수·날짜)만 근거로 채널을 진단·처방하세요.
@@ -24,8 +73,10 @@ const SYSTEM = `당신은 '나비', 한국 1인 유튜브 크리에이터의 AI 
  "shorts_solution":[{"point":"처방","why":"이유"}],
  "longform_solution":[{"point":"처방","why":"이유"}],
  "next_videos":[{"title":"제목","format":"쇼츠","angle":"각도","hook":"첫 3초"}],
- "this_week":["이번 주 할 일"]
-}`;
+ "this_week":["이번 주 할 일"],
+ "benchmark":{"name":"워너비 채널명","summary":"내 채널과의 차이 한 줄","learn":["이 채널에서 가져올 점"]}
+}
+벤치마크(워너비) 데이터가 없으면 "benchmark"는 null로 두세요. 있으면 구독자·영상 차이를 실수치로 짚고, 따라할 점을 구체적으로.`;
 
 function extractJson(text: string) {
   const t = text.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -40,10 +91,15 @@ function extractJson(text: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const { channel, videos, tone, purpose, aspiration } = await req.json();
+  const { channel, videos, tone, purpose, aspiration, benchmarkUrl } = await req.json();
   if (!channel || !Array.isArray(videos) || videos.length === 0) {
     return NextResponse.json({ error: "분석할 채널 데이터가 없어요." }, { status: 400 });
   }
+
+  const bench = benchmarkUrl ? await getBenchmark(benchmarkUrl) : null;
+  const benchBlock = bench
+    ? `\n\n[닮고 싶은 채널(워너비)]\n${bench.name} · 구독자 ${bench.subscribers.toLocaleString()}\n최근: ${bench.recent.join(", ")}`
+    : "";
 
   const profile = [
     tone && `톤: ${tone}`,
@@ -63,14 +119,14 @@ export async function POST(req: NextRequest) {
   try {
     const msg = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 1800,
+      max_tokens: 2200,
       system: SYSTEM,
       messages: [
         {
           role: "user",
           content: `[채널]\n${channel.name} · 구독자 ${Number(channel.subscribers).toLocaleString()} · 총 영상 ${channel.videoCount}개${
             profile ? `\n[프로필]\n${profile}` : ""
-          }\n\n[최근 업로드 — 오늘 새로 읽음]\n${list}`,
+          }\n\n[최근 업로드 — 오늘 새로 읽음]\n${list}${benchBlock}`,
         },
       ],
     });

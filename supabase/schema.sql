@@ -12,6 +12,7 @@ create table public.profiles (
   tone             text,            -- 감성·스토리형 / 정보·하우투형 ...
   purpose          text,            -- 신규 유입 확장 / 충성팬 심화
   aspiration       text,            -- "지향" (채널이 말해주지 않는 미래 방향)
+  benchmark_url    text,            -- 닮고 싶은 채널('워너비') URL
   briefing_enabled boolean default true,
   push_enabled     boolean default true,
   email_enabled    boolean default true,
@@ -39,12 +40,27 @@ create table public.push_subscriptions (
   created_at   timestamptz default now()
 );
 
+-- 4) 비로그인 매거진 구독자 (홈에서 이메일+채널만 입력)
+create table public.subscribers (
+  id            uuid primary key default gen_random_uuid(),
+  email         text not null unique,
+  channel_url   text not null,
+  benchmark_url text,
+  niche         text,
+  created_at    timestamptz default now()
+);
+
 -- ============================================================
 -- Row Level Security — 각자 자기 것만
 -- ============================================================
 alter table public.profiles           enable row level security;
 alter table public.briefings          enable row level security;
 alter table public.push_subscriptions enable row level security;
+alter table public.subscribers         enable row level security;
+
+-- 누구나 구독 신청(insert)만 가능. 읽기/수정은 service role(크론)만.
+create policy "anyone can subscribe" on public.subscribers
+  for insert with check (true);
 
 create policy "own profile"  on public.profiles
   for all using (auth.uid() = id) with check (auth.uid() = id);

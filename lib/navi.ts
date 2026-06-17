@@ -27,6 +27,7 @@ export type Profile = {
   tone?: string;
   purpose?: string;
   aspiration?: string;
+  benchmark_url?: string;
 };
 export async function saveProfile(p: Profile) {
   const { data: { user } } = await supabase.auth.getUser();

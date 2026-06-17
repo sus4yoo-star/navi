@@ -33,6 +33,7 @@ export default function Onboarding() {
   const [tone, setTone] = useState("");
   const [purpose, setPurpose] = useState("");
   const [aspiration, setAspiration] = useState("");
+  const [benchmarkUrl, setBenchmarkUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState("");
 
@@ -85,6 +86,7 @@ export default function Onboarding() {
         tone,
         purpose,
         aspiration: aspiration || undefined,
+        benchmark_url: benchmarkUrl || undefined,
       });
       router.push("/today");
     } catch (e: any) {
@@ -242,6 +244,14 @@ export default function Onboarding() {
                   value={aspiration}
                   onChange={(e) => setAspiration(e.target.value)}
                   placeholder="예: 정보형인데 감성형도 섞고 싶다"
+                  style={{ marginBottom: 18 }}
+                />
+                <label className="nv-label">닮고 싶은 채널 (선택) — 매일 이 채널과 비교해드려요</label>
+                <input
+                  className="nv-field"
+                  value={benchmarkUrl}
+                  onChange={(e) => setBenchmarkUrl(e.target.value)}
+                  placeholder="https://youtube.com/@워너비채널"
                   style={{ marginBottom: 18 }}
                 />
                 <button

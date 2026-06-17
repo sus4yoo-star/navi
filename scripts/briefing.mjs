@@ -53,7 +53,15 @@ async function getTrends(niche) {
 }
 function parseJson(t) { const s = t.indexOf("{"), e = t.lastIndexOf("}"); if (s < 0 || e <= s) return null; try { return JSON.parse(t.slice(s, e + 1)); } catch { return null; } }
 
-async function buildBriefing(p, cs, recent, trends) {
+async function getBenchmarkBlock(url) {
+  if (!url) return "";
+  const bench = await resolveChannel(url);
+  if (!bench) return "";
+  const recent = await getRecentUploads(bench.uploads).catch(() => []);
+  return `\n\n[닮고 싶은 채널(워너비)]\n${bench.title} · 구독자 ${bench.subs.toLocaleString()}\n최근: ${recent.slice(0, 5).map((r) => `"${r.title}"(${r.views.toLocaleString()}회)`).join(", ")}`;
+}
+
+async function buildBriefing(p, cs, recent, trends, benchmarkBlock = "") {
   const channelBlock = cs
     ? `채널: ${cs.title} · 구독자 ${cs.subs.toLocaleString()} · 영상 ${cs.videoCount}개\n최근 업로드:\n${recent.map((r) => `- ${r.title} (${r.views.toLocaleString()}회, ${r.date.slice(0, 10)})`).join("\n")}`
     : "(채널 현황 조회 실패)";
@@ -61,7 +69,7 @@ async function buildBriefing(p, cs, recent, trends) {
     model: "claude-opus-4-8", max_tokens: 4096, system: SYSTEM,
     // 웹 검색으로 similar_hit·crossover_hit의 실제 영상·출처를 근거 있게 — 지어내기 방지(절대원칙 3)
     tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }],
-    messages: [{ role: "user", content: `[채널 프로필]\n니치: ${p.niche}\n톤: ${p.tone}\n목적: ${p.purpose}\n지향: ${p.aspiration || "(없음)"}\n\n[내 채널 현황 — 오늘 새로 읽음]\n${channelBlock}\n\n[니치 트렌드 데이터]\n${JSON.stringify(trends)}` }],
+    messages: [{ role: "user", content: `[채널 프로필]\n니치: ${p.niche}\n톤: ${p.tone}\n목적: ${p.purpose}\n지향: ${p.aspiration || "(없음)"}\n\n[내 채널 현황 — 오늘 새로 읽음]\n${channelBlock}\n\n[니치 트렌드 데이터]\n${JSON.stringify(trends)}${benchmarkBlock}` }],
   });
   return parseJson(msg.content.filter((b) => b.type === "text").map((b) => b.text).join("\n"));
 }
@@ -99,13 +107,29 @@ async function main() {
       const cs = await resolveChannel(p.channel_url);          // 매일 채널 새로 읽기
       const recent = cs ? await getRecentUploads(cs.uploads) : [];
       const trends = await getTrends(p.niche || cs?.title || "");
-      const b = await buildBriefing(p, cs, recent, trends);
+      const benchmarkBlock = await getBenchmarkBlock(p.benchmark_url).catch(() => "");
+      const b = await buildBriefing(p, cs, recent, trends, benchmarkBlock);
       if (!b) continue;
       await sb.from("briefings").upsert({ user_id: p.id, for_date: todayKST, content: b }, { onConflict: "user_id,for_date" });
       if (p.email_enabled && p.email) await sendEmail(p.email, b);
       if (p.push_enabled) await sendPush(p.id, b);
       console.log("sent:", p.id);
     } catch (e) { console.error("failed:", p.id, e?.message || e); }
+  }
+
+  // 비로그인 매거진 구독자 — 이메일만 발송
+  const { data: subs } = await sb.from("subscribers").select("*");
+  for (const s of subs || []) {
+    try {
+      const cs = await resolveChannel(s.channel_url);
+      const recent = cs ? await getRecentUploads(cs.uploads) : [];
+      const trends = await getTrends(s.niche || cs?.title || "");
+      const benchmarkBlock = await getBenchmarkBlock(s.benchmark_url).catch(() => "");
+      const b = await buildBriefing({ niche: s.niche || cs?.title || "", tone: "", purpose: "", aspiration: "" }, cs, recent, trends, benchmarkBlock);
+      if (!b) continue;
+      await sendEmail(s.email, b);
+      console.log("sent(sub):", s.email);
+    } catch (e) { console.error("failed(sub):", s.email, e?.message || e); }
   }
 }
 main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });

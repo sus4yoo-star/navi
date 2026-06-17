@@ -35,9 +35,38 @@ export default function Home() {
   const [aspiration, setAspiration] = useState("");
   const [confirmed, setConfirmed] = useState(false);
 
+  // 비로그인 매거진 구독
+  const [subEmail, setSubEmail] = useState("");
+  const [subChannel, setSubChannel] = useState("");
+  const [subBench, setSubBench] = useState("");
+  const [subState, setSubState] = useState<"idle" | "busy" | "done">("idle");
+  const [subErr, setSubErr] = useState("");
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setAuthed(!!data.user));
   }, []);
+
+  async function subscribe() {
+    setSubErr("");
+    setSubState("busy");
+    try {
+      const r = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: subEmail,
+          channelUrl: subChannel,
+          benchmarkUrl: subBench || undefined,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "구독에 실패했어요.");
+      setSubState("done");
+    } catch (e: any) {
+      setSubErr(e.message);
+      setSubState("idle");
+    }
+  }
 
   async function detect() {
     if (!channelUrl.trim()) {
@@ -131,6 +160,52 @@ export default function Home() {
 
         <div className="nv-hero-grid" aria-hidden="true" />
       </header>
+
+      {/* ── 매일 매거진 구독 (비로그인) ── */}
+      {!authed && (
+        <div className="nv-wrap" style={{ paddingTop: 30 }}>
+          <div className="nv-card nv-card-accent">
+            <span className="nv-mono nv-eyebrow nv-eyebrow-accent">daily magazine</span>
+            <h2 className="nv-h2" style={{ margin: "8px 0 5px" }}>
+              매일 아침, 내 채널 매거진을 메일로
+            </h2>
+            <p className="nv-muted2" style={{ marginBottom: 16 }}>
+              비슷한 채널·지금 뜨는 콘텐츠·오늘 만들 영상까지. 가입 없이 이메일과 채널만 넣으면 끝.
+            </p>
+            {subState === "done" ? (
+              <div className="nv-mono" style={{ color: C.live, fontSize: 14, fontWeight: 600 }}>
+                구독 완료 — 내일 아침부터 메일로 받아보세요.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 9 }}>
+                <input
+                  className="nv-field"
+                  type="email"
+                  value={subEmail}
+                  onChange={(e) => setSubEmail(e.target.value)}
+                  placeholder="이메일 주소"
+                />
+                <input
+                  className="nv-field"
+                  value={subChannel}
+                  onChange={(e) => setSubChannel(e.target.value)}
+                  placeholder="내 채널 URL (https://youtube.com/@...)"
+                />
+                <input
+                  className="nv-field"
+                  value={subBench}
+                  onChange={(e) => setSubBench(e.target.value)}
+                  placeholder="닮고 싶은 채널 URL (선택)"
+                />
+                <button className="nv-btn" onClick={subscribe} disabled={subState === "busy"}>
+                  {subState === "busy" ? "신청 중…" : "매일 매거진 받기"}
+                </button>
+                {subErr && <p className="nv-err">{subErr}</p>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── 로그인 없이 체험: 채널 URL 하나로 알아서 ── */}
       <div className="nv-wrap" style={{ paddingTop: 30 }}>
