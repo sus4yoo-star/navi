@@ -41,7 +41,7 @@ async function discoverChannels(queries: string[], myName: string) {
   for (const q of queries) {
     if (found.size >= 18) break;
     const sr = await getJSON(
-      `${API}/search?part=snippet&type=video&order=viewCount&maxResults=25&relevanceLanguage=ko&regionCode=KR&publishedAfter=${after}&q=${encodeURIComponent(
+      `${API}/search?part=snippet&type=video&order=relevance&maxResults=25&relevanceLanguage=ko&regionCode=KR&publishedAfter=${after}&q=${encodeURIComponent(
         q
       )}&key=${YT}`
     );
@@ -185,16 +185,21 @@ export default async (req: Request) => {
       )
     ).filter(Boolean) as any[];
 
-    // 현재 성과(최근 평균조회) 기준으로 '잘 되는' 활성 채널만 — 약한 채널은 거른다.
+    // '비슷한 결 + 닿을 만한 + 잘 되는' 채널만 — 약하지도, 터무니없이 크지도 않게.
     const myAvg = list.length ? Math.round(list.reduce((s, v) => s + v.views, 0) / list.length) : 0;
     const rankedAll = [...enriched].sort((a, b) => b.avgViews - a.avgViews);
     const activeOnly = rankedAll.filter((c) => c.recent60 > 0);
     const base = activeOnly.length ? activeOnly : rankedAll; // 활성 채널이 없으면 전체에서라도
-    const floor = Math.max(myAvg * 0.8, 800);
-    let good = base.filter((c) => c.avgViews >= floor);
-    if (good.length < 3) good = base.slice(0, 5);
-    else good = good.slice(0, 6);
-    const active = good;
+    const floor = Math.max(myAvg * 0.8, 500);
+    const cap = myAvg > 0 ? myAvg * 50 : Infinity; // 내 평균조회의 50배까지 — 그 이상은 비교 무의미
+    let good = base.filter((c) => c.avgViews >= floor && c.avgViews <= cap);
+    if (good.length < 3) {
+      // 밴드가 좁으면 floor 이상에서 내 채널과 가까운(작은) 순으로 채운다
+      good = base.filter((c) => c.avgViews >= floor).sort((a, b) => a.avgViews - b.avgViews);
+      if (good.length < 3) good = base.slice(0, 5);
+    }
+    // 표시는 성과(평균조회) 높은 순
+    const active = [...good].sort((a, b) => b.avgViews - a.avgViews).slice(0, 6);
 
     const cohort = active.map((c) => ({
       name: c.name,
