@@ -48,13 +48,25 @@ type Sol = {
   this_week?: string[];
   benchmark?: { name: string; summary: string; learn: string[] } | null;
 };
+type Short = {
+  cue?: string; // 시작-끝 타임코드
+  transcript?: string; // 그 구간 실제 대사(자막 그대로)
+  hook: string; // 첫 3초 훅
+  onscreen?: string; // 화면에 넣을 자막 문구
+  caption?: string; // 업로드 캡션
+  hashtags?: string[];
+  title: string;
+  reason: string;
+  score?: number; // 예상 성과 0~100
+};
 type Analysis = {
+  summary?: string; // 영상 전체 핵심 요약
   good?: string[];
   improve?: string[];
   titles?: string[];
   thumbnail?: { concept: string; text: string };
   tags?: string[];
-  shorts?: { cue?: string; hook: string; reason: string; title: string }[];
+  shorts?: Short[];
   next_ideas?: string[];
 };
 
@@ -384,8 +396,18 @@ export default function Solution({
 }
 
 function Deep({ a }: { a: Analysis }) {
+  const shorts = (a.shorts || []).slice().sort((x, y) => (y.score ?? 0) - (x.score ?? 0));
   return (
     <div style={{ marginTop: 6 }}>
+      {a.summary && (
+        <div className="nv-deep-block">
+          <div className="nv-cue-row">
+            <p className="nv-h" style={{ margin: 0 }}>이 영상 요약</p>
+            <Copy text={a.summary} />
+          </div>
+          <p className="nv-reason" style={{ marginTop: 8, fontSize: 14 }}>{a.summary}</p>
+        </div>
+      )}
       {a.good && a.good.length > 0 && (
         <div className="nv-deep-block">
           <p className="nv-h">잘한 점</p>
@@ -408,24 +430,54 @@ function Deep({ a }: { a: Analysis }) {
           ))}
         </div>
       )}
-      {a.shorts && a.shorts.length > 0 && (
+      {shorts.length > 0 && (
         <div className="nv-deep-block">
-          <p className="nv-h">여기서 쇼츠로 뽑으면 좋아요</p>
-          {a.shorts.map((s, i) => (
-            <div key={i} style={{ padding: "8px 0" }}>
-              <div className="nv-cue-row">
-                <span className="nv-mono nv-cue">{s.cue || "CUE " + (i + 1)}</span>
-                <Copy text={s.hook} />
+          <p className="nv-h">여기서 쇼츠로 뽑으면 좋아요 — 성과 높은 순</p>
+          {shorts.map((s, i) => {
+            const pkg = [
+              s.title && `제목: ${s.title}`,
+              s.cue && `구간: ${s.cue}`,
+              s.onscreen && `화면자막: ${s.onscreen}`,
+              s.caption && `캡션: ${s.caption}`,
+              s.hashtags?.length && s.hashtags.join(" "),
+            ]
+              .filter(Boolean)
+              .join("\n");
+            return (
+              <div key={i} className="nv-short-card">
+                <div className="nv-cue-row">
+                  <span className="nv-mono nv-cue">{s.cue || "CUE " + (i + 1)}</span>
+                  {typeof s.score === "number" && (
+                    <span className="nv-mono nv-score">예상 {s.score}</span>
+                  )}
+                </div>
+                <p className="nv-hook" style={{ fontSize: 16, marginTop: 6 }}>
+                  &ldquo;{s.hook}&rdquo;
+                </p>
+                {s.transcript && (
+                  <p className="nv-transcript">“{s.transcript}”</p>
+                )}
+                <p className="nv-reason">{s.reason}</p>
+                {s.onscreen && (
+                  <div className="nv-mono nv-copy-line">화면 자막: {s.onscreen}</div>
+                )}
+                {s.caption && (
+                  <div className="nv-pkg-line">
+                    <span>캡션 · {s.caption}</span>
+                  </div>
+                )}
+                {s.hashtags && s.hashtags.length > 0 && (
+                  <div className="nv-mono" style={{ fontSize: 12, color: C.accent, marginTop: 4 }}>
+                    {s.hashtags.join(" ")}
+                  </div>
+                )}
+                <div className="nv-short-foot">
+                  <span className="nv-shorts-title"><b>쇼츠 제목</b> · {s.title}</span>
+                  <Copy text={pkg} label="패키지 복사" />
+                </div>
               </div>
-              <p className="nv-hook" style={{ fontSize: 16 }}>
-                &ldquo;{s.hook}&rdquo;
-              </p>
-              <p className="nv-reason">{s.reason}</p>
-              <div className="nv-shorts-title">
-                <b>쇼츠 제목</b> · {s.title}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
       {a.titles && a.titles.length > 0 && (
@@ -542,6 +594,11 @@ const css = `
 .nv-firsthook{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px;color:${C.accentInk};background:${C.accentTint};border-radius:7px;padding:8px 11px;line-height:1.5}
 .nv-shorts-title{font-size:13px;color:${C.sub}}
 .nv-shorts-title b{color:${C.ink};font-weight:700}
+.nv-short-card{border:1px solid ${C.line};border-radius:11px;padding:13px 14px;margin:10px 0;background:#FCFCFD}
+.nv-score{font-size:11px;color:${C.accent};font-weight:700;letter-spacing:.04em;border:1px solid ${C.accent};border-radius:999px;padding:2px 8px}
+.nv-transcript{font-size:13px;color:${C.ink};line-height:1.6;margin:0 0 8px;padding-left:10px;border-left:2px solid ${C.line}}
+.nv-pkg-line{font-size:13px;color:${C.sub};line-height:1.55;margin-top:4px}
+.nv-short-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:9px;padding-top:9px;border-top:1px dashed ${C.line}}
 .nv-desc{font-size:13.5px;color:${C.sub};line-height:1.7;white-space:pre-wrap;margin:0}
 .nv-data{font-size:13px;color:${C.ink};font-weight:500}
 .nv-read{font-size:14.5px;color:${C.ink};line-height:1.65;margin:11px 0 0}
