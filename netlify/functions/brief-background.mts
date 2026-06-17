@@ -54,6 +54,25 @@ async function discoverChannels(queries: string[], myName: string) {
   return [...found.keys()];
 }
 
+// YouTube 카테고리 → 한국어 라벨(장르 판별용)
+const CAT: Record<string, string> = {
+  "1": "영화/애니",
+  "2": "자동차",
+  "10": "음악",
+  "15": "동물",
+  "17": "스포츠",
+  "19": "여행",
+  "20": "게임",
+  "22": "인물/블로그",
+  "23": "코미디",
+  "24": "엔터테인먼트",
+  "25": "뉴스/정치",
+  "26": "노하우/스타일",
+  "27": "교육",
+  "28": "과학/기술",
+};
+const catLabel = (id?: string) => (id && CAT[id]) || "기타";
+
 async function channelStats(ids: string[]) {
   if (!ids.length) return [];
   const j = await getJSON(
@@ -63,6 +82,7 @@ async function channelStats(ids: string[]) {
     id: c.id as string,
     name: c.snippet.title as string,
     thumb: c.snippet.thumbnails?.default?.url as string,
+    description: ((c.snippet.description as string) || "").replace(/\s+/g, " ").slice(0, 160),
     subs: Number(c.statistics?.subscriberCount ?? 0),
     videoCount: Number(c.statistics?.videoCount ?? 0),
     uploads: c.contentDetails?.relatedPlaylists?.uploads as string,
@@ -84,6 +104,7 @@ async function recentActivity(uploads: string) {
     thumb: (x.snippet.thumbnails?.medium?.url || x.snippet.thumbnails?.high?.url) as string,
     views: Number(x.statistics?.viewCount ?? 0),
     published: x.snippet.publishedAt as string,
+    categoryId: x.snippet.categoryId as string,
     format: isoToSec(x.contentDetails?.duration || "") <= 60 ? "쇼츠" : "롱폼",
   }));
   if (!vids.length) return null;
@@ -92,7 +113,24 @@ async function recentActivity(uploads: string) {
   const avgViews = Math.round(vids.reduce((s: number, v: any) => s + v.views, 0) / vids.length);
   const top = [...vids].sort((a: any, b: any) => b.views - a.views)[0];
   const shortsPct = Math.round((vids.filter((v: any) => v.format === "쇼츠").length / vids.length) * 100);
-  return { recent60, avgViews, top, shortsPct };
+  return { recent60, avgViews, top, shortsPct, category: dominant(vids.map((v: any) => v.categoryId)) };
+}
+
+// 영상 카테고리들 중 최빈값
+function dominant(ids: (string | undefined)[]) {
+  const m = new Map<string, number>();
+  for (const id of ids) if (id) m.set(id, (m.get(id) || 0) + 1);
+  let best = "",
+    n = 0;
+  for (const [k, v] of m) if (v > n) (best = k), (n = v);
+  return best;
+}
+
+// 영상 id들의 최빈 카테고리(내 채널 장르 판별)
+async function videosCategory(ids: string[]) {
+  if (!ids.length) return "";
+  const j = await getJSON(`${API}/videos?part=snippet&id=${ids.slice(0, 20).join(",")}&key=${YT}`);
+  return dominant((j.items || []).map((x: any) => x.snippet?.categoryId));
 }
 
 // 잘 된 영상의 인기 댓글 — 시청자 수요의 실제 근거
@@ -186,13 +224,28 @@ export default async (req: Request) => {
       )
     ).filter(Boolean) as any[];
 
+    // 내 채널 장르(카테고리) — 같은 장르 후보를 우선하기 위함
+    const myCategory = await videosCategory(
+      (videos || []).map((v: any) => v.id).filter(Boolean).slice(0, 15)
+    ).catch(() => "");
+
     // 후보 채널: 방송사급 거대 채널만 1차로 쳐내고, '진짜 peer'는 모델이 장르로 고른다.
     const myAvg = list.length ? Math.round(list.reduce((s, v) => s + v.views, 0) / list.length) : 0;
     const mySubs = Number(channel?.subscribers ?? 0);
     const subCap = mySubs > 0 ? Math.max(mySubs * 300, 200000) : Infinity; // 방송사급 1차 배제
+    const sameCat = (c: any) => !!myCategory && c.category === myCategory;
+    const prox = (c: any) => Math.abs(Math.log10((c.subs || 1) + 1) - Math.log10((mySubs || 1) + 1));
     const candidates = [...enriched]
       .filter((c) => c.subs <= subCap)
-      .sort((a, b) => (b.recent60 > 0 ? 1 : 0) - (a.recent60 > 0 ? 1 : 0) || b.avgViews - a.avgViews)
+      .sort((a, b) => {
+        const act = (b.recent60 > 0 ? 1 : 0) - (a.recent60 > 0 ? 1 : 0);
+        if (act) return act;
+        const cat = (sameCat(b) ? 1 : 0) - (sameCat(a) ? 1 : 0);
+        if (cat) return cat;
+        const px = prox(a) - prox(b); // 규모가 가까운 채널 우선
+        if (Math.abs(px) > 0.05) return px;
+        return b.avgViews - a.avgViews;
+      })
       .slice(0, 12);
 
     const candCards = candidates.map((c) => ({
@@ -202,6 +255,8 @@ export default async (req: Request) => {
       recent60: c.recent60,
       avgViews: c.avgViews,
       shortsPct: c.shortsPct,
+      category: c.category as string,
+      description: c.description as string,
       url: `https://www.youtube.com/channel/${c.id}`,
       top: c.top
         ? {
@@ -252,16 +307,17 @@ export default async (req: Request) => {
     const candText = candCards
       .map(
         (c, i) =>
-          `${i + 1}. ${c.name} · 구독 ${c.subs.toLocaleString()} · 최근60일 ${c.recent60}편 · 평균조회 ${c.avgViews.toLocaleString()} · 쇼츠 ${c.shortsPct}%` +
-          (c.top ? ` · 대표 "${c.top.title}"(${c.top.views.toLocaleString()})` : "")
+          `${i + 1}. ${c.name} · [${catLabel(c.category)}] · 구독 ${c.subs.toLocaleString()} · 최근60일 ${c.recent60}편 · 평균조회 ${c.avgViews.toLocaleString()} · 쇼츠 ${c.shortsPct}%` +
+          (c.top ? ` · 대표 "${c.top.title}"(${c.top.views.toLocaleString()})` : "") +
+          (c.description ? `\n   소개: ${c.description}` : "")
       )
       .join("\n");
 
     const content =
-      `[내 채널] ${mine.name} · 구독자 ${mine.subs.toLocaleString()} · 평균조회 ${mine.avgViews.toLocaleString()} · 쇼츠 ${mine.shortsPct}%` +
+      `[내 채널] ${mine.name} · [${catLabel(myCategory)}] · 구독자 ${mine.subs.toLocaleString()} · 평균조회 ${mine.avgViews.toLocaleString()} · 쇼츠 ${mine.shortsPct}%` +
       (niche ? ` · 분야 ${niche}` : "") +
       `\n[내 최근 영상 — 내 색깔]\n${myPerf || "(아직 영상이 적음)"}` +
-      `\n\n[후보 채널들 — 이 중 내 채널과 '같은 종류·결·닿을 만한 규모'인 진짜 peer만 골라 channels에 넣어라]\n${candText || "(검색 결과 없음)"}` +
+      `\n\n[후보 채널들 — 카테고리·소개·규모를 보고, 내 채널과 '같은 종류·결·닿을 만한 규모'인 진짜 peer만 골라 channels에 넣어라]\n${candText || "(검색 결과 없음)"}` +
       `\n\n[후보 대표영상의 시청자 댓글 — 진짜 수요]\n${commentBlocks.join("\n\n") || "(댓글 없음)"}`;
 
     const msg = await anthropic.messages.create({
