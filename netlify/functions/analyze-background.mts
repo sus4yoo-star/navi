@@ -78,7 +78,7 @@ async function getChannelStats(channelUrl: string) {
 function buildPrompt(format: string) {
   const isShort = format === "쇼츠";
   const shortsRule = isShort
-    ? `이 영상은 이미 '쇼츠'입니다. 쇼츠로 자를 구간 제안은 하지 말고 "shorts"는 빈 배열([])로 두세요.`
+    ? `이 영상은 그 자체로 이미 '쇼츠'(60초 이하)입니다. 절대로 쇼츠로 자를 구간을 만들지 마세요. "shorts"는 반드시 빈 배열([]). 대신 이 쇼츠 자체의 훅·전개·마무리·패키징을 good/improve/titles로 평가하세요.`
     : `이 영상은 '롱폼'입니다. "shorts"에 쇼츠로 뽑으면 좋을 구간 5~6개를 제안하세요.`;
   return `당신은 '나비', 한국 1인 유튜브 크리에이터를 돕는 베테랑 PD입니다.
 이 영상을 음성과 화면을 모두 보고, 실제 내용에 근거해 분석하세요. 보이지/들리지 않은 것을 지어내지 마세요. 클리셰·과장·이모지 금지.
@@ -165,7 +165,9 @@ export default async (req: Request) => {
       .filter(Boolean)
       .join("\n");
 
-    const analysis = await analyzeVideo(videoUrl, statsCtx, format || "쇼츠");
+    const fmt = format || "쇼츠";
+    const analysis = await analyzeVideo(videoUrl, statsCtx, fmt);
+    if (fmt === "쇼츠" && analysis) analysis.shorts = [];
     await sb
       .from("analyses")
       .update({ status: "done", video, channel, result: analysis })

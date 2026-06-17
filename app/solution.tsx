@@ -61,6 +61,37 @@ function delCache(key: string) {
 }
 const today = () => new Date().toISOString().slice(0, 10);
 
+// 최근 영상(실데이터)으로 채널 현황을 계산 — 지어내지 않고 숫자로.
+function channelStats(videos: Video[], subs: number) {
+  if (!videos.length) return [] as { label: string; value: string }[];
+  const avg = (a: Video[]) =>
+    a.length ? Math.round(a.reduce((s, v) => s + v.views, 0) / a.length) : 0;
+  const shorts = videos.filter((v) => v.format === "쇼츠");
+  const longs = videos.filter((v) => v.format === "롱폼");
+  const top = videos.reduce((a, b) => (b.views > a.views ? b : a), videos[0]);
+  const times = videos
+    .map((v) => +new Date(v.date))
+    .filter((t) => !isNaN(t))
+    .sort((a, b) => b - a);
+  const gap =
+    times.length > 1 ? (times[0] - times[times.length - 1]) / 86400000 / (times.length - 1) : 0;
+  const rows: { label: string; value: string }[] = [];
+  if (shorts.length)
+    rows.push({ label: "쇼츠", value: `${shorts.length}편 · 평균 ${avg(shorts).toLocaleString()}회` });
+  if (longs.length)
+    rows.push({ label: "롱폼", value: `${longs.length}편 · 평균 ${avg(longs).toLocaleString()}회` });
+  if (gap > 0)
+    rows.push({ label: "업로드", value: gap < 1.5 ? "거의 매일" : `${gap.toFixed(0)}일에 1편꼴` });
+  if (top)
+    rows.push({
+      label: "최고 조회",
+      value: `${top.views.toLocaleString()}회${
+        subs > 0 ? ` · 구독자 대비 ${(top.views / subs).toFixed(1)}배` : ""
+      }`,
+    });
+  return rows;
+}
+
 type Video = {
   id: string;
   title: string;
@@ -300,11 +331,24 @@ export default function Solution({
             {channel.name} · 구독자 {channel.subscribers.toLocaleString()} · 영상{" "}
             {channel.videoCount.toLocaleString()}개
           </div>
+          {(() => {
+            const rows = channelStats(videos, channel.subscribers);
+            return rows.length ? (
+              <div className="nv-stats">
+                {rows.map((r) => (
+                  <div className="nv-stat" key={r.label}>
+                    <span className="nv-mono nv-stat-l">{r.label}</span>
+                    <span className="nv-stat-v">{r.value}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null;
+          })()}
           {sol?.read ? (
             <p className="nv-read">{sol.read}</p>
           ) : solLoading ? (
             <div className="nv-running" style={{ margin: "10px 0 0" }}>
-              <span className="nv-pulse" /> 채널 진단 작성 중
+              <span className="nv-pulse" /> 최근 10편으로 채널 진단 작성 중
             </div>
           ) : null}
         </div>
@@ -663,6 +707,10 @@ const css = `
 .nv-short-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:9px;padding-top:9px;border-top:1px dashed ${C.line}}
 .nv-desc{font-size:13.5px;color:${C.sub};line-height:1.7;white-space:pre-wrap;margin:0}
 .nv-data{font-size:13px;color:${C.ink};font-weight:500}
+.nv-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin:13px 0 2px;padding:13px 0 3px;border-top:1px solid ${C.line}}
+.nv-stat{display:flex;flex-direction:column;gap:3px}
+.nv-stat-l{font-size:10.5px;color:${C.faint};letter-spacing:.1em;text-transform:uppercase}
+.nv-stat-v{font-size:14px;color:${C.ink};font-weight:600;line-height:1.35}
 .nv-read{font-size:14.5px;color:${C.ink};line-height:1.65;margin:11px 0 0}
 .nv-evi{font-size:12px;color:${C.live};line-height:1.5;margin-top:3px}
 .nv-strat-pt{font-size:14.5px;font-weight:700;margin-bottom:3px;color:${C.ink}}
