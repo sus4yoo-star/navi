@@ -21,7 +21,7 @@ export const maxDuration = 60; // 영상 시청은 시간이 걸림 (Netlify는 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 const YT_KEY = process.env.YOUTUBE_API_KEY;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const CLAUDE_MODEL = "claude-opus-4-8";
 
 // ---------- URL 파싱 ----------
