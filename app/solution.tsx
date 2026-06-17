@@ -238,6 +238,20 @@ type Plan = {
   demand?: { want: string; quote?: string }[];
   ideas?: Idea[];
 };
+type Radar = {
+  cohort?: {
+    name: string;
+    thumb?: string;
+    subs: number;
+    recent60: number;
+    avgViews: number;
+    shortsPct: number;
+    top?: { title: string; views: number } | null;
+  }[];
+  mine?: { name: string; subs: number; avgViews: number; shortsPct: number };
+  landscape?: string;
+  inspirations?: { from: string; insight: string; apply: string; ref?: string }[];
+};
 type Analysis = {
   summary?: string; // 영상 전체 핵심 요약
   good?: string[];
@@ -293,6 +307,47 @@ export default function Solution({
   const [planLoading, setPlanLoading] = useState(false);
   const [planErr, setPlanErr] = useState("");
 
+  // 니치 레이더 — 비슷한 결의 지금 활발한 채널들 한눈에 비교 + 영감(병렬 로딩)
+  const [radar, setRadar] = useState<Radar | null>(null);
+  const [radarLoading, setRadarLoading] = useState(false);
+  const [radarErr, setRadarErr] = useState("");
+
+  const startRadar = useCallback(
+    async (ch: any, vids: Video[], force = false) => {
+      if (!ch) return;
+      const key = `navi_radar_${channelUrl}_${today()}`;
+      if (force) {
+        delCache(key);
+        setRadar(null);
+      }
+      setRadarErr("");
+      const cached = loadCache(key);
+      if (!force && cached?.status === "done" && cached.data) {
+        setRadar(cached.data);
+        return;
+      }
+      setRadarLoading(true);
+      try {
+        let pid = !force && cached?.status === "pending" ? cached.id : undefined;
+        if (!pid) {
+          const r = await callJson("/api/radar/start", { channel: ch, videos: vids, niche });
+          pid = r.id;
+          saveCache(key, { id: pid, status: "pending" });
+        }
+        const job = await pollJob(pid!);
+        setRadar(job?.analysis || null);
+        saveCache(key, { id: pid, status: "done", data: job?.analysis || null });
+      } catch (e: any) {
+        setRadar(null);
+        setRadarErr(e?.message || "정찰을 받지 못했어요.");
+        delCache(key);
+      } finally {
+        setRadarLoading(false);
+      }
+    },
+    [channelUrl, niche]
+  );
+
   // 기획 실행 — 캐시 우선, force면 캐시 비우고 새로
   const startPlan = useCallback(
     async (ch: any, vids: Video[], force = false) => {
@@ -339,6 +394,8 @@ export default function Solution({
     setBench(null);
     setPlan(null);
     setPlanErr("");
+    setRadar(null);
+    setRadarErr("");
     setChannel(null);
     setVideos([]);
     setPageToken(null);
@@ -373,6 +430,8 @@ export default function Solution({
 
     // 기획 엔진(병렬·캐시·재방문 복원) — 닫았다 와도 그날 결과 그대로
     startPlan(base.channel, base.videos);
+    // 니치 레이더(병렬) — 비슷한 활성 채널 정찰
+    startRadar(base.channel, base.videos);
 
     // 2단계: 진단·처방 (백그라운드 + 폴링 — LLM이 동기 함수 제한을 넘김)
     // 오늘자 결과를 기기에 캐시 → 다시 열면 즉시 표시(진행 중이면 이어받기).
@@ -405,7 +464,7 @@ export default function Solution({
     } finally {
       setSolLoading(false);
     }
-  }, [channelUrl, tone, purpose, aspiration, benchmarkUrl, niche, startPlan]);
+  }, [channelUrl, tone, purpose, aspiration, benchmarkUrl, niche, startPlan, startRadar]);
 
   useEffect(() => {
     run();
@@ -612,6 +671,92 @@ export default function Solution({
               ))}
             </Collapse>
           )}
+        </div>
+      )}
+
+      {/* 니치 레이더 — 비슷한 결의 지금 활발한 채널들을 한눈에 + 영감 */}
+      {(radarLoading || radar || radarErr) && (
+        <div className="nv-card nv-radar">
+          <div className="nv-hero-top">
+            <div>
+              <div className="nv-hero-eyebrow">
+                <Wing size={15} />
+                <span className="nv-mono">니치 레이더</span>
+              </div>
+              <h2 className="nv-hero-title" style={{ fontSize: 18 }}>
+                비슷한 채널은 지금 이렇게 한다
+              </h2>
+            </div>
+            {channel && (radar || radarErr) && (
+              <button
+                className="nv-replan"
+                onClick={() => startRadar(channel, videos, true)}
+                disabled={radarLoading}
+              >
+                {radarLoading ? "정찰 중…" : "다시 정찰"}
+              </button>
+            )}
+          </div>
+
+          {radarLoading && !radar && (
+            <div className="nv-running" style={{ margin: "14px 2px 4px" }}>
+              <span className="nv-pulse" /> 비슷한 결의 지금 활발한 채널들을 정찰하는 중…
+            </div>
+          )}
+          {radarErr && !radarLoading && (
+            <div style={{ marginTop: 12 }}>
+              <p className="nv-err" style={{ margin: "0 0 10px" }}>{radarErr}</p>
+              {channel && (
+                <button className="nv-btn" onClick={() => startRadar(channel, videos, true)}>
+                  다시 정찰
+                </button>
+              )}
+            </div>
+          )}
+
+          {radar?.landscape && (
+            <p className="nv-reason" style={{ margin: "12px 0 0", color: C.ink }}>
+              {radar.landscape}
+            </p>
+          )}
+
+          {!!radar?.cohort?.length && (
+            <div className="nv-rt">
+              <div className="nv-rt-row nv-rt-head">
+                <span>채널</span>
+                <span>구독자</span>
+                <span>평균조회</span>
+                <span>최근60일</span>
+              </div>
+              {radar.mine && (
+                <div className="nv-rt-row nv-rt-mine">
+                  <span className="nv-rt-name">내 채널</span>
+                  <span className="nv-mono">{radar.mine.subs.toLocaleString()}</span>
+                  <span className="nv-mono">{radar.mine.avgViews.toLocaleString()}</span>
+                  <span className="nv-mono">—</span>
+                </div>
+              )}
+              {radar.cohort.map((c, i) => (
+                <div className="nv-rt-row" key={i}>
+                  <span className="nv-rt-name" title={c.name}>{c.name}</span>
+                  <span className="nv-mono">{c.subs.toLocaleString()}</span>
+                  <span className="nv-mono">{c.avgViews.toLocaleString()}</span>
+                  <span className="nv-mono">{c.recent60}편</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {radar?.inspirations?.map((ins, i) => (
+            <div key={i} className="nv-insp">
+              <div className="nv-cue-row">
+                <span className="nv-src">{ins.from}</span>
+              </div>
+              <p className="nv-strat-pt">{ins.insight}</p>
+              <div className="nv-firsthook" style={{ marginTop: 6 }}>내 채널엔 · {ins.apply}</div>
+              {ins.ref && <p className="nv-evi-q" style={{ marginTop: 6 }}>근거 · {ins.ref}</p>}
+            </div>
+          ))}
         </div>
       )}
 
@@ -1227,6 +1372,19 @@ const css = `
 .nv-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .nv-hero-eyebrow{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.16em;color:${C.accent};font-weight:700;text-transform:uppercase}
 .nv-hero-title{font-size:21px;font-weight:800;letter-spacing:-.02em;color:${C.ink};margin:7px 0 0;line-height:1.2}
+.nv-radar{background:linear-gradient(180deg,#EFFBF5 0%,#fff 120px);border:1px solid #C8E9D7;box-shadow:0 10px 30px -18px rgba(31,158,107,.4)}
+.nv-radar .nv-hero-eyebrow{color:${C.live}}
+.nv-rt{margin-top:14px;border:1px solid ${C.line};border-radius:11px;overflow:hidden}
+.nv-rt-row{display:grid;grid-template-columns:1.5fr .9fr .9fr .75fr;align-items:center;gap:6px;padding:10px 12px;border-top:1px solid ${C.line};font-size:13px}
+.nv-rt-row:first-child{border-top:0}
+.nv-rt-row span:not(.nv-rt-name){text-align:right;color:${C.ink};font-size:12.5px}
+.nv-rt-head{background:#FAFAFC;font-size:11px;color:${C.faint};letter-spacing:.04em;font-weight:700}
+.nv-rt-head span{color:${C.faint} !important}
+.nv-rt-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:${C.ink}}
+.nv-rt-mine{background:${C.accentTint}}
+.nv-rt-mine .nv-rt-name{color:${C.accentInk}}
+.nv-insp{border:1px solid ${C.line};border-left:3px solid ${C.live};border-radius:11px;padding:14px 16px;margin-top:12px;background:#fff;box-shadow:0 1px 2px rgba(20,23,28,.04)}
+.nv-insp .nv-src{color:${C.live};border-color:${C.live}}
 .nv-tag{display:inline-block;background:${C.canvas};border:1px solid ${C.line};border-radius:7px;padding:5px 10px;font-size:12.5px;margin:0 6px 6px 0;color:${C.sub}}
 .nv-badge{display:inline-block;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:6px;margin-right:8px;vertical-align:middle}
 .nv-badge.s{background:#EAF7F0;color:#1F9E6B;border:1px solid #BFE9D5}
