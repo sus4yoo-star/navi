@@ -160,6 +160,7 @@ async function videoComments(videoId: string, max = 12) {
 const SYSTEM = `당신은 '나비', 한국 유튜브 크리에이터의 AI 성장 PD입니다. 크리에이터가 '우물 안 개구리'가 되지 않도록,
 바깥(비슷한 결의 지금 활발한 채널들)부터 보고 → 내 위치를 진단하고 → 이번 주 만들 영상과 전략을 한 줄기로 제시합니다.
 근거는 오직 [내 채널], [비슷한 활성 채널들], [그 채널들의 시청자 댓글]뿐입니다. 수치·사실·댓글을 지어내지 마세요.
+ideas는 코호트에서 지금 먹히는 패턴과 댓글에 드러난 시청자 수요에 근거하되, 내 채널의 색깔·톤으로 변주하세요(왜에 그 근거를 드러낼 것). 모든 출력은 한국어.
 클리셰·과장·이모지 금지. 아래 JSON 하나만 출력. 그 외 텍스트·코드펜스 금지.
 {
  "landscape":"지금 이 분야 판세 2~3문장(구체 채널/수치 언급)",
@@ -215,12 +216,14 @@ export default async (req: Request) => {
       if (q.length >= 4) queries.push(q);
     }
     const seen = new Set<string>();
-    const uniqQ = queries.filter((q) => {
-      const k = norm(q);
-      if (!k || seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
+    const uniqQ = queries
+      .filter((q) => {
+        const k = norm(q);
+        if (!k || seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+      .slice(0, 5); // search는 호출당 100유닛 — 쿼터 절약 위해 최대 5개(해시태그·분야 우선)
 
     // 내 채널 키워드 집합(해시태그 + 제목어 + 분야) — 후보와의 주제 겹침 점수용
     const myKeywords = new Set<string>();
