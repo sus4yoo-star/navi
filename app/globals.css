@@ -1,11 +1,11 @@
-@import url("https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700;800&display=swap");
 
 :root {
   --canvas: #f6f5f2;
   --ink: #1a1a20;
   --accent: #4b43d6;
   --grad: linear-gradient(100deg, #4b43d6 0%, #7a5af0 100%);
-  --font-serif: "Nanum Myeongjo", "Apple SD Gothic Neo", serif;
+  --font-serif: "Noto Serif KR", "Apple SD Gothic Neo", serif;
 }
 
 * {
@@ -25,7 +25,7 @@ body {
   min-height: 100%;
   background: transparent;
   color: var(--ink);
-  font-family: -apple-system, "Apple SD Gothic Neo", "Pretendard", sans-serif;
+  font-family: var(--font-serif), -apple-system, "Apple SD Gothic Neo", "Pretendard", serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
