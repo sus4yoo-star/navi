@@ -255,6 +255,18 @@ type Radar = {
   diagnosis?: { point: string; evidence: string }[];
   inspirations?: { from: string; insight: string; apply: string; ref?: string }[];
 };
+// 통합 브리핑 — 하나의 결과로 모든 패널을 그린다
+type Brief = {
+  cohort?: Radar["cohort"];
+  mine?: Radar["mine"];
+  landscape?: string;
+  position?: string;
+  diagnosis?: { point: string; evidence: string }[];
+  inspirations?: { from: string; insight: string; apply: string }[];
+  ideas?: Idea[];
+  strategy?: { point: string; why: string }[];
+  todo?: string[];
+};
 type Analysis = {
   summary?: string; // 영상 전체 핵심 요약
   good?: string[];
@@ -284,13 +296,11 @@ export default function Solution({
   userId?: string;
 }) {
   const [loading, setLoading] = useState(false); // 1단계: 목록
-  const [solLoading, setSolLoading] = useState(false); // 2단계: 진단
   const [err, setErr] = useState("");
   const [channel, setChannel] = useState<{ name: string; subscribers: number; videoCount: number } | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [pageToken, setPageToken] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [sol, setSol] = useState<Sol | null>(null);
 
   const [deepId, setDeepId] = useState<string | null>(null);
   const deepIdRef = useRef<string | null>(null);
@@ -305,84 +315,42 @@ export default function Solution({
   const [bench, setBench] = useState<Sol["benchmark"]>(null);
   const [benchLoading, setBenchLoading] = useState(false);
 
-  // '뭘 만들지' 기획 엔진 — 댓글 수요 + 성과 근거(병렬 로딩)
-  const [plan, setPlan] = useState<Plan | null>(null);
-  const [planLoading, setPlanLoading] = useState(false);
-  const [planErr, setPlanErr] = useState("");
+  // 통합 브리핑 — 정찰→내 위치·진단→이번 주 만들 영상→전략→할 일을 하나로
+  const [brief, setBrief] = useState<Brief | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
+  const [briefErr, setBriefErr] = useState("");
 
-  // 니치 레이더 — 비슷한 결의 지금 활발한 채널들 한눈에 비교 + 영감(병렬 로딩)
-  const [radar, setRadar] = useState<Radar | null>(null);
-  const [radarLoading, setRadarLoading] = useState(false);
-  const [radarErr, setRadarErr] = useState("");
-
-  const startRadar = useCallback(
+  const startBrief = useCallback(
     async (ch: any, vids: Video[], force = false) => {
       if (!ch) return;
-      const key = `navi_radar_${channelUrl}_${today()}`;
+      const key = `navi_brief_${channelUrl}_${today()}`;
       if (force) {
         delCache(key);
-        setRadar(null);
+        setBrief(null);
       }
-      setRadarErr("");
+      setBriefErr("");
       const cached = loadCache(key);
       if (!force && cached?.status === "done" && cached.data) {
-        setRadar(cached.data);
+        setBrief(cached.data);
         return;
       }
-      setRadarLoading(true);
+      setBriefLoading(true);
       try {
         let pid = !force && cached?.status === "pending" ? cached.id : undefined;
         if (!pid) {
-          const r = await callJson("/api/radar/start", { channel: ch, videos: vids, niche });
+          const r = await callJson("/api/brief/start", { channel: ch, videos: vids, niche });
           pid = r.id;
           saveCache(key, { id: pid, status: "pending" });
         }
         const job = await pollJob(pid!);
-        setRadar(job?.analysis || null);
+        setBrief(job?.analysis || null);
         saveCache(key, { id: pid, status: "done", data: job?.analysis || null });
       } catch (e: any) {
-        setRadar(null);
-        setRadarErr(e?.message || "정찰을 받지 못했어요.");
+        setBrief(null);
+        setBriefErr(e?.message || "브리핑을 받지 못했어요.");
         delCache(key);
       } finally {
-        setRadarLoading(false);
-      }
-    },
-    [channelUrl, niche]
-  );
-
-  // 기획 실행 — 캐시 우선, force면 캐시 비우고 새로
-  const startPlan = useCallback(
-    async (ch: any, vids: Video[], force = false) => {
-      if (!ch) return;
-      const planKey = `navi_plan_${channelUrl}_${today()}`;
-      if (force) {
-        delCache(planKey);
-        setPlan(null);
-      }
-      setPlanErr("");
-      const cached = loadCache(planKey);
-      if (!force && cached?.status === "done" && cached.data) {
-        setPlan(cached.data);
-        return;
-      }
-      setPlanLoading(true);
-      try {
-        let pid = !force && cached?.status === "pending" ? cached.id : undefined;
-        if (!pid) {
-          const r = await callJson("/api/plan/start", { channel: ch, videos: vids, niche });
-          pid = r.id;
-          saveCache(planKey, { id: pid, status: "pending" });
-        }
-        const job = await pollJob(pid!);
-        setPlan(job?.analysis || null);
-        saveCache(planKey, { id: pid, status: "done", data: job?.analysis || null });
-      } catch (e: any) {
-        setPlan(null);
-        setPlanErr(e?.message || "기획을 받지 못했어요.");
-        delCache(planKey);
-      } finally {
-        setPlanLoading(false);
+        setBriefLoading(false);
       }
     },
     [channelUrl, niche]
@@ -391,14 +359,10 @@ export default function Solution({
   const run = useCallback(async () => {
     if (!channelUrl) return;
     setLoading(true);
-    setSolLoading(false);
     setErr("");
-    setSol(null);
+    setBrief(null);
+    setBriefErr("");
     setBench(null);
-    setPlan(null);
-    setPlanErr("");
-    setRadar(null);
-    setRadarErr("");
     setChannel(null);
     setVideos([]);
     setPageToken(null);
@@ -418,7 +382,7 @@ export default function Solution({
     }
     setLoading(false);
 
-    // 비교는 별도 요청으로 병렬 진행(메인 진단 속도에 영향 X).
+    // 비교는 별도 요청으로 병렬 진행(메인 브리핑 속도에 영향 X).
     // benchmarkUrl이 없어도 자동으로 '잘 되는 비슷한 채널'을 찾아 비교한다.
     setBenchLoading(true);
     callJson("/api/benchmark", {
@@ -431,43 +395,9 @@ export default function Solution({
       .catch(() => setBench(null))
       .finally(() => setBenchLoading(false));
 
-    // 기획 엔진(병렬·캐시·재방문 복원) — 닫았다 와도 그날 결과 그대로
-    startPlan(base.channel, base.videos);
-    // 니치 레이더(병렬) — 비슷한 활성 채널 정찰
-    startRadar(base.channel, base.videos);
-
-    // 2단계: 진단·처방 (백그라운드 + 폴링 — LLM이 동기 함수 제한을 넘김)
-    // 오늘자 결과를 기기에 캐시 → 다시 열면 즉시 표시(진행 중이면 이어받기).
-    const solKey = `navi_sol_${channelUrl}_${today()}`;
-    const cached = loadCache(solKey);
-    if (cached?.status === "done" && cached.data) {
-      setSol(cached.data);
-      return;
-    }
-    setSolLoading(true);
-    try {
-      let id = cached?.status === "pending" ? cached.id : undefined;
-      if (!id) {
-        const r = await callJson("/api/solution/start", {
-          channel: base.channel,
-          videos: base.videos,
-          tone,
-          purpose,
-          aspiration,
-        });
-        id = r.id;
-        saveCache(solKey, { id, status: "pending" });
-      }
-      const job = await pollJob(id!);
-      setSol(job?.analysis || null);
-      saveCache(solKey, { id, status: "done", data: job?.analysis || null });
-    } catch (e: any) {
-      setErr(e.message);
-      delCache(solKey);
-    } finally {
-      setSolLoading(false);
-    }
-  }, [channelUrl, tone, purpose, aspiration, benchmarkUrl, niche, startPlan, startRadar]);
+    // 통합 브리핑(백그라운드+폴링·캐시·재방문 복원) — 정찰→진단→기획→전략을 하나로
+    startBrief(base.channel, base.videos);
+  }, [channelUrl, benchmarkUrl, niche, startBrief]);
 
   useEffect(() => {
     run();
@@ -569,7 +499,7 @@ export default function Solution({
       )}
 
       {/* 중심축 — 니치 레이더: 비슷한 결의 지금 활발한 채널들을 한눈에 + 영감 */}
-      {(radarLoading || radar || radarErr) && (
+      {(briefLoading || brief || briefErr) && (
         <div className="nv-card nv-radar">
           <div className="nv-hero-top">
             <div>
@@ -579,38 +509,38 @@ export default function Solution({
               </div>
               <h2 className="nv-hero-title">비슷한 채널은 지금 이렇게 한다</h2>
             </div>
-            {channel && (radar || radarErr) && (
+            {channel && (brief || briefErr) && (
               <button
                 className="nv-replan"
-                onClick={() => startRadar(channel, videos, true)}
-                disabled={radarLoading}
+                onClick={() => startBrief(channel, videos, true)}
+                disabled={briefLoading}
               >
-                {radarLoading ? "정찰 중…" : "다시 정찰"}
+                {briefLoading ? "정찰 중…" : "다시 정찰"}
               </button>
             )}
           </div>
 
-          {radarLoading && !radar && (
+          {briefLoading && !brief && (
             <div className="nv-running" style={{ margin: "14px 2px 4px" }}>
-              <span className="nv-pulse" /> 비슷한 결의 지금 활발한 채널들을 정찰하는 중…
+              <span className="nv-pulse" /> 비슷한 채널 정찰 → 진단 → 기획까지 준비하는 중…
             </div>
           )}
-          {radarErr && !radarLoading && (
+          {briefErr && !briefLoading && (
             <div style={{ marginTop: 12 }}>
-              <p className="nv-err" style={{ margin: "0 0 10px" }}>{radarErr}</p>
+              <p className="nv-err" style={{ margin: "0 0 10px" }}>{briefErr}</p>
               {channel && (
-                <button className="nv-btn" onClick={() => startRadar(channel, videos, true)}>
+                <button className="nv-btn" onClick={() => startBrief(channel, videos, true)}>
                   다시 정찰
                 </button>
               )}
             </div>
           )}
 
-          {radar?.landscape && (
-            <p className="nv-reason" style={{ margin: "12px 0 0", color: C.ink }}>{radar.landscape}</p>
+          {brief?.landscape && (
+            <p className="nv-reason" style={{ margin: "12px 0 0", color: C.ink }}>{brief.landscape}</p>
           )}
 
-          {!!radar?.cohort?.length && (
+          {!!brief?.cohort?.length && (
             <div className="nv-rt">
               <div className="nv-rt-row nv-rt-head">
                 <span>채널 · 대표 영상</span>
@@ -618,15 +548,15 @@ export default function Solution({
                 <span>평균조회</span>
                 <span>최근60일</span>
               </div>
-              {radar.mine && (
+              {brief.mine && (
                 <div className="nv-rt-row nv-rt-mine">
                   <span className="nv-rt-name">내 채널</span>
-                  <span className="nv-mono">{radar.mine.subs.toLocaleString()}</span>
-                  <span className="nv-mono">{radar.mine.avgViews.toLocaleString()}</span>
+                  <span className="nv-mono">{brief.mine.subs.toLocaleString()}</span>
+                  <span className="nv-mono">{brief.mine.avgViews.toLocaleString()}</span>
                   <span className="nv-mono">—</span>
                 </div>
               )}
-              {radar.cohort.map((c, i) => (
+              {brief.cohort.map((c, i) => (
                 <div className="nv-rt-row" key={i}>
                   <span className="nv-rt-name">
                     {c.url ? (
@@ -653,8 +583,8 @@ export default function Solution({
             </div>
           )}
 
-          {radar?.inspirations?.map((ins, i) => {
-            const url = radar.cohort?.find((c) => c.name === ins.from)?.url;
+          {brief?.inspirations?.map((ins, i) => {
+            const url = brief.cohort?.find((c) => c.name === ins.from)?.url;
             return (
               <div key={i} className="nv-insp">
                 <div className="nv-cue-row">
@@ -668,7 +598,6 @@ export default function Solution({
                 </div>
                 <p className="nv-strat-pt">{ins.insight}</p>
                 <div className="nv-firsthook" style={{ marginTop: 6 }}>내 채널엔 · {ins.apply}</div>
-                {ins.ref && <p className="nv-evi-q" style={{ marginTop: 6 }}>근거 · {ins.ref}</p>}
               </div>
             );
           })}
@@ -676,16 +605,16 @@ export default function Solution({
       )}
 
       {/* 내 위치 · 진단 — 코호트 대비 근거 기반 개선점 */}
-      {(radar?.position || !!radar?.diagnosis?.length) && (
+      {(brief?.position || !!brief?.diagnosis?.length) && (
         <div className="nv-card">
           <span className="nv-mono nv-eyebrow nv-eyebrow-accent">내 위치 · 진단</span>
-          {radar?.position && (
-            <p className="nv-reason" style={{ margin: "10px 0 0", color: C.ink }}>{radar.position}</p>
+          {brief?.position && (
+            <p className="nv-reason" style={{ margin: "10px 0 0", color: C.ink }}>{brief.position}</p>
           )}
-          {!!radar?.diagnosis?.length && (
+          {!!brief?.diagnosis?.length && (
             <>
               <p className="nv-h" style={{ marginTop: 16 }}>개선점</p>
-              {radar.diagnosis.map((d, i) => (
+              {brief.diagnosis.map((d, i) => (
                 <div key={i} className={"nv-row " + (i ? "" : "first")}>
                   <div className="nv-strat-pt">{d.point}</div>
                   <div className="nv-mono nv-evi">근거 · {d.evidence}</div>
@@ -696,45 +625,16 @@ export default function Solution({
         </div>
       )}
 
-      {/* 히어로 — 작가(사전조사)+PD(기획): 이번 주 만들 영상 */}
-      {(planLoading || plan || planErr) && (
+      {/* 이번 주 만들 영상 — 바깥 정찰에서 도출 */}
+      {!!brief?.ideas?.length && (
         <div className="nv-card nv-hero">
-          <div className="nv-hero-top">
-            <div>
-              <div className="nv-hero-eyebrow">
-                <Wing size={15} />
-                <span className="nv-mono">작가 + PD</span>
-              </div>
-              <h2 className="nv-hero-title">이번 주 만들 영상</h2>
-            </div>
-            {channel && (plan || planErr) && (
-              <button
-                className="nv-replan"
-                onClick={() => startPlan(channel, videos, true)}
-                disabled={planLoading}
-              >
-                {planLoading ? "기획 중…" : "다시 기획"}
-              </button>
-            )}
+          <div className="nv-hero-eyebrow">
+            <Wing size={15} />
+            <span className="nv-mono">작가 + PD</span>
           </div>
+          <h2 className="nv-hero-title" style={{ marginBottom: 4 }}>이번 주 만들 영상</h2>
 
-          {planLoading && !plan && (
-            <div className="nv-running" style={{ margin: "14px 2px 4px" }}>
-              <span className="nv-pulse" /> 요새 뜨는 영상과 시청자 반응을 모으는 중…
-            </div>
-          )}
-          {planErr && !planLoading && (
-            <div style={{ marginTop: 12 }}>
-              <p className="nv-err" style={{ margin: "0 0 10px" }}>{planErr}</p>
-              {channel && (
-                <button className="nv-btn" onClick={() => startPlan(channel, videos, true)}>
-                  다시 기획
-                </button>
-              )}
-            </div>
-          )}
-
-          {plan?.ideas?.map((idea, i) => (
+          {brief.ideas.map((idea, i) => (
             <div key={i} className="nv-idea">
               <div className="nv-cue-row">
                 <span className={"nv-badge " + (idea.format === "쇼츠" ? "s" : "l")}>
@@ -781,27 +681,6 @@ export default function Solution({
               </div>
             </div>
           ))}
-
-          {!!plan?.working?.length && (
-            <Collapse title="지금 이 분야에서 먹히는 것">
-              {plan.working.map((w, i) => (
-                <div key={i} className="nv-demand">
-                  <p className="nv-strat-pt">{w.point}</p>
-                  {w.ref && <p className="nv-evi-q">근거 · {w.ref}</p>}
-                </div>
-              ))}
-            </Collapse>
-          )}
-          {!!plan?.demand?.length && (
-            <Collapse title="시청자가 원하는 것 · 댓글 근거">
-              {plan.demand.map((d, i) => (
-                <div key={i} className="nv-demand">
-                  <p className="nv-strat-pt">{d.want}</p>
-                  {d.quote && <p className="nv-evi-q">“{d.quote}”</p>}
-                </div>
-              ))}
-            </Collapse>
-          )}
         </div>
       )}
 
@@ -825,65 +704,27 @@ export default function Solution({
               </div>
             ) : null;
           })()}
-          {sol?.read ? (
-            <p className="nv-read">{sol.read}</p>
-          ) : solLoading ? (
-            <div className="nv-running" style={{ margin: "10px 0 0" }}>
-              <span className="nv-pulse" /> 최근 10편으로 채널 진단 작성 중
-            </div>
-          ) : null}
         </div>
       )}
 
-      {(!!sol?.patterns?.length ||
-        !!sol?.shorts_solution?.length ||
-        !!sol?.longform_solution?.length) && (
+      {!!brief?.strategy?.length && (
         <div className="nv-card">
-          <span className="nv-mono nv-eyebrow">전략 · 진단과 처방</span>
-          {!!sol?.patterns?.length && (
-            <>
-              <p className="nv-h" style={{ marginTop: 12 }}>진단</p>
-              {sol.patterns.map((p, i) => (
-                <div key={i} className={"nv-row " + (i ? "" : "first")}>
-                  <div className="nv-strat-pt">{p.point}</div>
-                  <div className="nv-mono nv-evi">근거 · {p.evidence}</div>
-                </div>
-              ))}
-            </>
-          )}
-          {!!sol?.shorts_solution?.length && (
-            <>
-              <p className="nv-h" style={{ marginTop: 18 }}>
-                <span className="nv-badge s">쇼츠</span> 처방
-              </p>
-              {sol.shorts_solution.map((s, i) => (
-                <div key={i} className={"nv-row " + (i ? "" : "first")}>
-                  <div className="nv-strat-pt">{s.point}</div>
-                  <div className="nv-strat-why">{s.why}</div>
-                </div>
-              ))}
-            </>
-          )}
-          {!!sol?.longform_solution?.length && (
-            <>
-              <p className="nv-h" style={{ marginTop: 18 }}>
-                <span className="nv-badge l">롱폼</span> 처방
-              </p>
-              {sol.longform_solution.map((s, i) => (
-                <div key={i} className={"nv-row " + (i ? "" : "first")}>
-                  <div className="nv-strat-pt">{s.point}</div>
-                  <div className="nv-strat-why">{s.why}</div>
-                </div>
-              ))}
-            </>
-          )}
+          <span className="nv-mono nv-eyebrow">전략 · 앞으로 나아갈 방향</span>
+          <div style={{ marginTop: 6 }}>
+            {brief.strategy.map((s, i) => (
+              <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                <div className="nv-strat-pt">{s.point}</div>
+                <div className="nv-strat-why">{s.why}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {!!sol?.this_week?.length && (
+      {!!brief?.todo?.length && (
         <div className="nv-card">
           <p className="nv-h">오늘부터 할 일</p>
-          {sol.this_week.map((t, i) => (
+          {brief.todo.map((t, i) => (
             <div key={i} className={"nv-row " + (i ? "" : "first") + " nv-todo"}>
               <span className="nv-todo-box">□</span>
               {t}
