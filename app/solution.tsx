@@ -551,6 +551,8 @@ export default function Solution({
                 <IdeaThumb idea={idea} niche={niche} />
               )}
 
+              <IdeaScript idea={idea} niche={niche} />
+
               <div className="nv-short-foot">
                 <span />
                 <Copy
@@ -992,6 +994,76 @@ function IdeaThumb({ idea, niche }: { idea: Idea; niche?: string }) {
   );
 }
 
+type Script = {
+  length?: string;
+  scenes?: { t?: string; visual?: string; line?: string; caption?: string }[];
+  cta?: string;
+};
+// 기획안 → 대본(스토리보드) 생성(백그라운드+폴링)
+function IdeaScript({ idea, niche }: { idea: Idea; niche?: string }) {
+  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+  const [script, setScript] = useState<Script>();
+  async function gen() {
+    setState("busy");
+    try {
+      const { id } = await callJson("/api/script/start", { idea, niche });
+      const job = await pollJob(id);
+      if (!job?.analysis) throw new Error("no script");
+      setScript(job.analysis);
+      setState("done");
+    } catch {
+      setState("error");
+    }
+  }
+  const copyText = script
+    ? [
+        `[대본] ${idea.title}` + (script.length ? ` · ${script.length}` : ""),
+        ...(script.scenes || []).map(
+          (s, i) =>
+            `${i + 1}. ${s.t || ""}\n  화면: ${s.visual || ""}\n  대사: ${s.line || ""}\n  자막: ${
+              s.caption || ""
+            }`
+        ),
+        script.cta ? `마무리: ${script.cta}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
+  return (
+    <div className="nv-script">
+      {!script && (
+        <button className="nv-detbtn" onClick={gen} disabled={state === "busy"}>
+          {state === "busy" ? "대본 쓰는 중… (~20초)" : "대본 만들기"}
+        </button>
+      )}
+      {state === "error" && (
+        <p className="nv-err" style={{ marginTop: 8 }}>대본 생성에 실패했어요. 다시 시도해 주세요.</p>
+      )}
+      {script && (
+        <>
+          <div className="nv-cue-row">
+            <p className="nv-rp-h" style={{ margin: 0 }}>
+              대본{script.length ? ` · ${script.length}` : ""}
+            </p>
+            <Copy text={copyText} label="대본 복사" />
+          </div>
+          {(script.scenes || []).map((s, i) => (
+            <div key={i} className="nv-scene">
+              <span className="nv-mono nv-scene-t">{s.t || i + 1}</span>
+              <div className="nv-scene-body">
+                {s.visual && <p className="nv-scene-v">{s.visual}</p>}
+                {s.line && <p className="nv-scene-line">“{s.line}”</p>}
+                {s.caption && <div className="nv-mono nv-copy-line">자막: {s.caption}</div>}
+              </div>
+            </div>
+          ))}
+          {script.cta && <p className="nv-reason" style={{ marginTop: 8 }}>마무리 · {script.cta}</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
 function Deep({ a }: { a: Analysis }) {
   // 서버가 '센 것부터' 정렬해 보내므로 그 순서를 그대로 유지한다.
   const shorts = a.shorts || [];
@@ -1221,6 +1293,13 @@ const css = `
 .nv-refpoints{margin-top:11px;padding-top:11px;border-top:1px dashed ${C.line}}
 .nv-thumbsug{margin-top:11px;padding-top:11px;border-top:1px dashed ${C.line}}
 .nv-thumbimg{width:100%;border-radius:10px;border:1px solid ${C.line};display:block}
+.nv-script{margin-top:11px;padding-top:11px;border-top:1px dashed ${C.line}}
+.nv-scene{display:flex;gap:10px;padding:9px 0;border-top:1px solid ${C.line}}
+.nv-scene:first-of-type{border-top:0}
+.nv-scene-t{font-size:11px;color:${C.accent};font-weight:700;white-space:nowrap;padding-top:2px;min-width:54px}
+.nv-scene-body{flex:1}
+.nv-scene-v{font-size:13px;color:${C.sub};margin:0 0 3px;line-height:1.5}
+.nv-scene-line{font-size:14px;color:${C.ink};font-weight:600;margin:0 0 3px;line-height:1.5}
 .nv-rp-h{font-size:11px;color:${C.faint};letter-spacing:.08em;font-weight:700;margin:0 0 7px;text-transform:uppercase}
 .nv-replan{padding:5px 12px;background:transparent;border:1px solid ${C.accent};border-radius:999px;color:${C.accent};font-size:12px;font-weight:700;cursor:pointer}
 .nv-replan:disabled{opacity:.5;cursor:default}
