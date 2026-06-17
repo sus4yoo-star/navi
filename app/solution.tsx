@@ -273,6 +273,41 @@ export default function Solution({
   const [plan, setPlan] = useState<Plan | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
 
+  // 기획 실행 — 캐시 우선, force면 캐시 비우고 새로
+  const startPlan = useCallback(
+    async (ch: any, vids: Video[], force = false) => {
+      if (!ch) return;
+      const planKey = `navi_plan_${channelUrl}_${today()}`;
+      if (force) {
+        delCache(planKey);
+        setPlan(null);
+      }
+      const cached = loadCache(planKey);
+      if (!force && cached?.status === "done" && cached.data) {
+        setPlan(cached.data);
+        return;
+      }
+      setPlanLoading(true);
+      try {
+        let pid = !force && cached?.status === "pending" ? cached.id : undefined;
+        if (!pid) {
+          const r = await callJson("/api/plan/start", { channel: ch, videos: vids, niche });
+          pid = r.id;
+          saveCache(planKey, { id: pid, status: "pending" });
+        }
+        const job = await pollJob(pid!);
+        setPlan(job?.analysis || null);
+        saveCache(planKey, { id: pid, status: "done", data: job?.analysis || null });
+      } catch {
+        setPlan(null);
+        delCache(planKey);
+      } finally {
+        setPlanLoading(false);
+      }
+    },
+    [channelUrl, niche]
+  );
+
   const run = useCallback(async () => {
     if (!channelUrl) return;
     setLoading(true);
@@ -314,35 +349,7 @@ export default function Solution({
       .finally(() => setBenchLoading(false));
 
     // 기획 엔진(병렬·캐시·재방문 복원) — 닫았다 와도 그날 결과 그대로
-    (async () => {
-      const planKey = `navi_plan_${channelUrl}_${today()}`;
-      const cached = loadCache(planKey);
-      if (cached?.status === "done" && cached.data) {
-        setPlan(cached.data);
-        return;
-      }
-      setPlanLoading(true);
-      try {
-        let pid = cached?.status === "pending" ? cached.id : undefined;
-        if (!pid) {
-          const r = await callJson("/api/plan/start", {
-            channel: base.channel,
-            videos: base.videos,
-            niche,
-          });
-          pid = r.id;
-          saveCache(planKey, { id: pid, status: "pending" });
-        }
-        const job = await pollJob(pid!);
-        setPlan(job?.analysis || null);
-        saveCache(planKey, { id: pid, status: "done", data: job?.analysis || null });
-      } catch {
-        setPlan(null);
-        delCache(planKey);
-      } finally {
-        setPlanLoading(false);
-      }
-    })();
+    startPlan(base.channel, base.videos);
 
     // 2단계: 진단·처방 (백그라운드 + 폴링 — LLM이 동기 함수 제한을 넘김)
     // 오늘자 결과를 기기에 캐시 → 다시 열면 즉시 표시(진행 중이면 이어받기).
@@ -375,7 +382,7 @@ export default function Solution({
     } finally {
       setSolLoading(false);
     }
-  }, [channelUrl, tone, purpose, aspiration, benchmarkUrl, niche]);
+  }, [channelUrl, tone, purpose, aspiration, benchmarkUrl, niche, startPlan]);
 
   useEffect(() => {
     run();
@@ -498,7 +505,18 @@ export default function Solution({
       {/* 히어로 — 작가(사전조사)+PD(기획): 이번 주 만들 영상 */}
       {(planLoading || plan) && (
         <div className="nv-card nv-card-accent">
-          <span className="nv-mono nv-eyebrow nv-eyebrow-accent">이번 주 만들 영상</span>
+          <div className="nv-cue-row">
+            <span className="nv-mono nv-eyebrow nv-eyebrow-accent">이번 주 만들 영상</span>
+            {channel && (
+              <button
+                className="nv-replan"
+                onClick={() => startPlan(channel, videos, true)}
+                disabled={planLoading}
+              >
+                {planLoading ? "기획 중…" : "다시 기획"}
+              </button>
+            )}
+          </div>
           {planLoading && !plan && (
             <p className="nv-reason" style={{ margin: "9px 0 0" }}>
               요새 뜨는 영상과 시청자 반응을 모으는 중…
@@ -1157,6 +1175,8 @@ const css = `
 .nv-refpoints{margin-top:11px;padding-top:11px;border-top:1px dashed ${C.line}}
 .nv-thumbsug{margin-top:11px;padding-top:11px;border-top:1px dashed ${C.line}}
 .nv-rp-h{font-size:11px;color:${C.faint};letter-spacing:.08em;font-weight:700;margin:0 0 7px;text-transform:uppercase}
+.nv-replan{padding:5px 12px;background:transparent;border:1px solid ${C.accent};border-radius:999px;color:${C.accent};font-size:12px;font-weight:700;cursor:pointer}
+.nv-replan:disabled{opacity:.5;cursor:default}
 .nv-read{font-size:14.5px;color:${C.ink};line-height:1.65;margin:11px 0 0}
 .nv-evi{font-size:12px;color:${C.live};line-height:1.5;margin-top:3px}
 .nv-strat-pt{font-size:14.5px;font-weight:700;margin-bottom:3px;color:${C.ink}}
