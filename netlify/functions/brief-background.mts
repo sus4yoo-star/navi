@@ -21,7 +21,15 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
 const norm = (s: string) => (s || "").replace(/\s/g, "").toLowerCase();
-const getJSON = async (url: string) => (await fetch(url)).json();
+// 네트워크·쿼터·JSON 오류가 나도 전체 브리핑이 죽지 않도록 {}를 돌려준다.
+const getJSON = async (url: string): Promise<any> => {
+  try {
+    const r = await fetch(url);
+    return await r.json();
+  } catch {
+    return {};
+  }
+};
 function isoToSec(d: string) {
   const m = d?.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   if (!m) return 0;
@@ -45,6 +53,7 @@ async function discoverChannels(queries: string[], myName: string) {
         q
       )}&key=${YT}`
     );
+    if (sr.error) console.error("search 오류:", q, sr.error?.message || sr.error?.code);
     for (const it of sr.items || []) {
       const cid = it.snippet?.channelId;
       const ct = it.snippet?.channelTitle || "";
@@ -213,6 +222,20 @@ export default async (req: Request) => {
       return true;
     });
 
+    // 내 채널 키워드 집합(해시태그 + 제목어 + 분야) — 후보와의 주제 겹침 점수용
+    const myKeywords = new Set<string>();
+    for (const t of topTags) myKeywords.add(t.toLowerCase());
+    for (const w of (niche || "").split(/[\s·,]+/)) if (w.length >= 2) myKeywords.add(w.toLowerCase());
+    for (const v of list)
+      for (const w of v.title.replace(/#[^\s#]+/g, " ").split(/[\s·,.!?\[\]()/|"']+/))
+        if (w.length >= 2) myKeywords.add(w.toLowerCase());
+    const kwOverlap = (c: any) => {
+      const text = `${c.name} ${c.description || ""} ${c.top?.title || ""}`.toLowerCase();
+      let n = 0;
+      for (const k of myKeywords) if (k.length >= 2 && text.includes(k)) n++;
+      return n;
+    };
+
     const channelIds = uniqQ.length ? await discoverChannels(uniqQ, myName) : [];
     const stats = await channelStats(channelIds);
     const enriched = (
@@ -232,16 +255,18 @@ export default async (req: Request) => {
     // 후보 채널: 방송사급 거대 채널만 1차로 쳐내고, '진짜 peer'는 모델이 장르로 고른다.
     const myAvg = list.length ? Math.round(list.reduce((s, v) => s + v.views, 0) / list.length) : 0;
     const mySubs = Number(channel?.subscribers ?? 0);
-    const subCap = mySubs > 0 ? Math.max(mySubs * 300, 200000) : Infinity; // 방송사급 1차 배제
+    const subCap = mySubs > 0 ? Math.max(mySubs * 300, 100000) : Infinity; // 방송사급 1차 배제
     const sameCat = (c: any) => !!myCategory && c.category === myCategory;
     const prox = (c: any) => Math.abs(Math.log10((c.subs || 1) + 1) - Math.log10((mySubs || 1) + 1));
     const candidates = [...enriched]
       .filter((c) => c.subs <= subCap)
+      .map((c) => ({ ...c, kw: kwOverlap(c) }))
       .sort((a, b) => {
         const act = (b.recent60 > 0 ? 1 : 0) - (a.recent60 > 0 ? 1 : 0);
         if (act) return act;
         const cat = (sameCat(b) ? 1 : 0) - (sameCat(a) ? 1 : 0);
         if (cat) return cat;
+        if (b.kw !== a.kw) return b.kw - a.kw; // 주제어가 더 겹치는 채널 우선
         const px = prox(a) - prox(b); // 규모가 가까운 채널 우선
         if (Math.abs(px) > 0.05) return px;
         return b.avgViews - a.avgViews;
@@ -320,18 +345,30 @@ export default async (req: Request) => {
       `\n\n[후보 채널들 — 카테고리·소개·규모를 보고, 내 채널과 '같은 종류·결·닿을 만한 규모'인 진짜 peer만 골라 channels에 넣어라]\n${candText || "(검색 결과 없음)"}` +
       `\n\n[후보 대표영상의 시청자 댓글 — 진짜 수요]\n${commentBlocks.join("\n\n") || "(댓글 없음)"}`;
 
-    const msg = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 6000,
-      system: SYSTEM,
-      messages: [{ role: "user", content }],
-    });
-    const raw = msg.content.filter((b) => b.type === "text").map((b: any) => b.text).join("\n");
-    const parsed = extractJson(raw);
-    if (!parsed) {
-      console.error("brief JSON 파싱 실패. raw 앞부분:", raw.slice(0, 400));
-      throw new Error("브리핑 결과를 읽지 못했어요.");
+    // 모델 호출 + 파싱. 일시 오류·JSON 깨짐에 대비해 1회 재시도.
+    let parsed: any = null;
+    for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
+      try {
+        const msg = await anthropic.messages.create({
+          model: MODEL,
+          max_tokens: 6000,
+          system: SYSTEM,
+          messages: [
+            { role: "user", content },
+            ...(attempt > 0
+              ? [{ role: "assistant" as const, content: "{" }] // JSON 시작을 강제해 깨짐 방지
+              : []),
+          ],
+        });
+        let raw = msg.content.filter((b) => b.type === "text").map((b: any) => b.text).join("\n");
+        if (attempt > 0) raw = "{" + raw; // prefill 보정
+        parsed = extractJson(raw);
+        if (!parsed) console.error(`brief JSON 파싱 실패(시도 ${attempt + 1}). raw 앞부분:`, raw.slice(0, 300));
+      } catch (e: any) {
+        console.error(`brief 모델 호출 실패(시도 ${attempt + 1}):`, e?.message || e);
+      }
     }
+    if (!parsed) throw new Error("브리핑 결과를 읽지 못했어요. 잠시 후 다시 시도해 주세요.");
     // 모델이 고른 '진짜 peer'만 코호트로 (후보 통계에 분석·적용을 합친다)
     const sel = (parsed.channels || []) as { name: string; analysis?: string; apply?: string }[];
     const cohort = sel
