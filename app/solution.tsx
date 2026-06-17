@@ -83,12 +83,17 @@ export default function Solution({
   const [deepErr, setDeepErr] = useState("");
   const [deep, setDeep] = useState<Analysis | null>(null);
 
+  // 워너비 비교 — 메인 진단과 분리해 병렬 로딩(타임아웃 방어)
+  const [bench, setBench] = useState<Sol["benchmark"]>(null);
+  const [benchLoading, setBenchLoading] = useState(false);
+
   const run = useCallback(async () => {
     if (!channelUrl) return;
     setLoading(true);
     setSolLoading(false);
     setErr("");
     setSol(null);
+    setBench(null);
     setChannel(null);
     setVideos([]);
     setDeepId(null);
@@ -105,6 +110,16 @@ export default function Solution({
       return;
     }
     setLoading(false);
+
+    // 워너비 비교는 별도 요청으로 병렬 진행(메인 진단 속도에 영향 X)
+    if (benchmarkUrl) {
+      setBenchLoading(true);
+      callJson("/api/benchmark", { channel: base.channel, benchmarkUrl })
+        .then((b) => setBench(b.benchmark || null))
+        .catch(() => setBench(null))
+        .finally(() => setBenchLoading(false));
+    }
+
     // 2단계: 진단·처방 (모델 — 뒤이어 채워짐)
     setSolLoading(true);
     try {
@@ -114,7 +129,6 @@ export default function Solution({
         tone,
         purpose,
         aspiration,
-        benchmarkUrl,
       });
       setSol(s.solution || null);
     } catch (e: any) {
@@ -306,18 +320,24 @@ export default function Solution({
         </div>
       )}
 
-      {sol?.benchmark && (
+      {benchLoading && !bench && (
+        <div className="nv-card nv-card-accent">
+          <span className="nv-mono nv-eyebrow nv-eyebrow-accent">닮고 싶은 채널과 비교</span>
+          <p className="nv-reason" style={{ margin: "9px 0 0" }}>닮고 싶은 채널을 읽는 중…</p>
+        </div>
+      )}
+      {bench && (
         <div className="nv-card nv-card-accent">
           <span className="nv-mono nv-eyebrow nv-eyebrow-accent">
             닮고 싶은 채널과 비교
           </span>
           <p className="nv-hook" style={{ fontSize: 16, margin: "9px 0 5px" }}>
-            {sol.benchmark.name}
+            {bench.name}
           </p>
           <p className="nv-reason" style={{ marginBottom: 10 }}>
-            {sol.benchmark.summary}
+            {bench.summary}
           </p>
-          {(sol.benchmark.learn || []).map((t, i) => (
+          {(bench.learn || []).map((t, i) => (
             <div key={i} className="nv-fb nv-fb-good">
               <span className="nv-fb-mark">＋</span>
               {t}

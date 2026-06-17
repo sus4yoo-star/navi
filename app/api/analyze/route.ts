@@ -100,9 +100,9 @@ function extractJson(text: string) {
 
 async function analyzeVideo(videoUrl: string, statsCtx: string, format: string) {
   if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY가 설정되지 않았어요.");
-  // 롱폼은 프레임 샘플링을 낮춰 처리 시간을 줄임(타임아웃 방어)
+  // 롱폼은 프레임 샘플링을 더 낮춰 처리 시간을 줄임(타임아웃 방어)
   const videoPart: any = { file_data: { file_uri: videoUrl } };
-  if (format !== "쇼츠") videoPart.video_metadata = { fps: 0.5 };
+  if (format !== "쇼츠") videoPart.video_metadata = { fps: 0.2 };
   const r = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`,
     {
