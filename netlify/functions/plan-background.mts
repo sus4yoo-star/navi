@@ -144,7 +144,7 @@ export default async (req: Request) => {
 
     const msg = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 2200,
+      max_tokens: 4096,
       system: SYSTEM,
       messages: [{ role: "user", content }],
     });

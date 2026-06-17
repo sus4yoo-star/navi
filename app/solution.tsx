@@ -4,7 +4,7 @@
 // channelUrl(+프로필)만 받으면 /api/channel로 최근 10개를 진단·처방. 영상별 깊은 분석은 "자세히" 탭.
 
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
-import { C } from "@/lib/ui";
+import { C, Wing } from "@/lib/ui";
 
 // 서버가 (타임아웃 등으로) HTML 오류 페이지를 줘도 안 깨지게 안전 파싱
 async function callJson(url: string, body: unknown) {
@@ -291,6 +291,7 @@ export default function Solution({
   // '뭘 만들지' 기획 엔진 — 댓글 수요 + 성과 근거(병렬 로딩)
   const [plan, setPlan] = useState<Plan | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
+  const [planErr, setPlanErr] = useState("");
 
   // 기획 실행 — 캐시 우선, force면 캐시 비우고 새로
   const startPlan = useCallback(
@@ -301,6 +302,7 @@ export default function Solution({
         delCache(planKey);
         setPlan(null);
       }
+      setPlanErr("");
       const cached = loadCache(planKey);
       if (!force && cached?.status === "done" && cached.data) {
         setPlan(cached.data);
@@ -317,8 +319,9 @@ export default function Solution({
         const job = await pollJob(pid!);
         setPlan(job?.analysis || null);
         saveCache(planKey, { id: pid, status: "done", data: job?.analysis || null });
-      } catch {
+      } catch (e: any) {
         setPlan(null);
+        setPlanErr(e?.message || "기획을 받지 못했어요.");
         delCache(planKey);
       } finally {
         setPlanLoading(false);
@@ -335,6 +338,7 @@ export default function Solution({
     setSol(null);
     setBench(null);
     setPlan(null);
+    setPlanErr("");
     setChannel(null);
     setVideos([]);
     setPageToken(null);
@@ -503,11 +507,17 @@ export default function Solution({
       )}
 
       {/* 히어로 — 작가(사전조사)+PD(기획): 이번 주 만들 영상 */}
-      {(planLoading || plan) && (
-        <div className="nv-card nv-card-accent">
-          <div className="nv-cue-row">
-            <span className="nv-mono nv-eyebrow nv-eyebrow-accent">이번 주 만들 영상</span>
-            {channel && (
+      {(planLoading || plan || planErr) && (
+        <div className="nv-card nv-hero">
+          <div className="nv-hero-top">
+            <div>
+              <div className="nv-hero-eyebrow">
+                <Wing size={15} />
+                <span className="nv-mono">작가 + PD</span>
+              </div>
+              <h2 className="nv-hero-title">이번 주 만들 영상</h2>
+            </div>
+            {channel && (plan || planErr) && (
               <button
                 className="nv-replan"
                 onClick={() => startPlan(channel, videos, true)}
@@ -517,10 +527,21 @@ export default function Solution({
               </button>
             )}
           </div>
+
           {planLoading && !plan && (
-            <p className="nv-reason" style={{ margin: "9px 0 0" }}>
-              요새 뜨는 영상과 시청자 반응을 모으는 중…
-            </p>
+            <div className="nv-running" style={{ margin: "14px 2px 4px" }}>
+              <span className="nv-pulse" /> 요새 뜨는 영상과 시청자 반응을 모으는 중…
+            </div>
+          )}
+          {planErr && !planLoading && (
+            <div style={{ marginTop: 12 }}>
+              <p className="nv-err" style={{ margin: "0 0 10px" }}>{planErr}</p>
+              {channel && (
+                <button className="nv-btn" onClick={() => startPlan(channel, videos, true)}>
+                  다시 기획
+                </button>
+              )}
+            </div>
           )}
 
           {plan?.ideas?.map((idea, i) => (
@@ -624,6 +645,63 @@ export default function Solution({
         </div>
       )}
 
+      {(!!sol?.patterns?.length ||
+        !!sol?.shorts_solution?.length ||
+        !!sol?.longform_solution?.length) && (
+        <div className="nv-card">
+          <span className="nv-mono nv-eyebrow">전략 · 진단과 처방</span>
+          {!!sol?.patterns?.length && (
+            <>
+              <p className="nv-h" style={{ marginTop: 12 }}>진단</p>
+              {sol.patterns.map((p, i) => (
+                <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                  <div className="nv-strat-pt">{p.point}</div>
+                  <div className="nv-mono nv-evi">근거 · {p.evidence}</div>
+                </div>
+              ))}
+            </>
+          )}
+          {!!sol?.shorts_solution?.length && (
+            <>
+              <p className="nv-h" style={{ marginTop: 18 }}>
+                <span className="nv-badge s">쇼츠</span> 처방
+              </p>
+              {sol.shorts_solution.map((s, i) => (
+                <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                  <div className="nv-strat-pt">{s.point}</div>
+                  <div className="nv-strat-why">{s.why}</div>
+                </div>
+              ))}
+            </>
+          )}
+          {!!sol?.longform_solution?.length && (
+            <>
+              <p className="nv-h" style={{ marginTop: 18 }}>
+                <span className="nv-badge l">롱폼</span> 처방
+              </p>
+              {sol.longform_solution.map((s, i) => (
+                <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                  <div className="nv-strat-pt">{s.point}</div>
+                  <div className="nv-strat-why">{s.why}</div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {!!sol?.this_week?.length && (
+        <div className="nv-card">
+          <p className="nv-h">오늘부터 할 일</p>
+          {sol.this_week.map((t, i) => (
+            <div key={i} className={"nv-row " + (i ? "" : "first") + " nv-todo"}>
+              <span className="nv-todo-box">□</span>
+              {t}
+            </div>
+          ))}
+        </div>
+      )}
+
       {videos.length > 0 && (
         <div className="nv-card">
           <p className="nv-h">최근 영상 — 탭하면 그 영상만 깊게 분석</p>
@@ -683,82 +761,6 @@ export default function Solution({
         </div>
       )}
 
-      {!!sol?.this_week?.length && (
-        <div className="nv-card">
-          <p className="nv-h">오늘부터 할 일</p>
-          {sol.this_week.map((t, i) => (
-            <div key={i} className={"nv-row " + (i ? "" : "first") + " nv-todo"}>
-              <span className="nv-todo-box">□</span>
-              {t}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {(!!sol?.patterns?.length ||
-        !!sol?.shorts_solution?.length ||
-        !!sol?.longform_solution?.length ||
-        !!sol?.next_videos?.length) && (
-        <Collapse title="전략 자세히 · 진단 · 처방 · 다음 영상">
-          {!!sol?.patterns?.length && (
-            <>
-              <p className="nv-h">진단</p>
-              {sol.patterns.map((p, i) => (
-                <div key={i} className={"nv-row " + (i ? "" : "first")}>
-                  <div className="nv-strat-pt">{p.point}</div>
-                  <div className="nv-mono nv-evi">근거 · {p.evidence}</div>
-                </div>
-              ))}
-            </>
-          )}
-          {!!sol?.shorts_solution?.length && (
-            <>
-              <p className="nv-h" style={{ marginTop: 16 }}>
-                <span className="nv-badge s">쇼츠</span> 처방
-              </p>
-              {sol.shorts_solution.map((s, i) => (
-                <div key={i} className={"nv-row " + (i ? "" : "first")}>
-                  <div className="nv-strat-pt">{s.point}</div>
-                  <div className="nv-strat-why">{s.why}</div>
-                </div>
-              ))}
-            </>
-          )}
-          {!!sol?.longform_solution?.length && (
-            <>
-              <p className="nv-h" style={{ marginTop: 16 }}>
-                <span className="nv-badge l">롱폼</span> 처방
-              </p>
-              {sol.longform_solution.map((s, i) => (
-                <div key={i} className={"nv-row " + (i ? "" : "first")}>
-                  <div className="nv-strat-pt">{s.point}</div>
-                  <div className="nv-strat-why">{s.why}</div>
-                </div>
-              ))}
-            </>
-          )}
-          {!!sol?.next_videos?.length && (
-            <>
-              <p className="nv-h" style={{ marginTop: 16 }}>다음에 만들 영상</p>
-              {sol.next_videos.map((n, i) => (
-                <div key={i} className={"nv-row " + (i ? "" : "first")}>
-                  <div className="nv-cue-row">
-                    <span className={"nv-badge " + (n.format === "쇼츠" ? "s" : "l")}>
-                      {n.format}
-                    </span>
-                    <Copy text={n.title} />
-                  </div>
-                  <p className="nv-hook" style={{ fontSize: 15 }}>{n.title}</p>
-                  <p className="nv-reason" style={{ margin: 0 }}>{n.angle}</p>
-                  {n.hook && (
-                    <div className="nv-firsthook" style={{ marginTop: 6 }}>첫 3초 · {n.hook}</div>
-                  )}
-                </div>
-              ))}
-            </>
-          )}
-        </Collapse>
-      )}
 
       {benchLoading && !bench && (
         <div className="nv-card nv-card-accent">
@@ -1219,8 +1221,12 @@ const css = `
 .nv-ghost:hover{border-color:${C.sub};color:${C.ink}}
 .nv-card{background:#fff;border:1px solid ${C.line};border-radius:14px;padding:20px 22px;margin-bottom:14px;box-shadow:0 1px 2px rgba(20,23,28,.04),0 8px 24px -18px rgba(20,23,28,.18)}
 .nv-card-accent{background:#FBFBFE;border-color:${C.accent};box-shadow:0 8px 28px -16px rgba(75,67,214,.4)}
-.nv-eyebrow{font-size:11px;letter-spacing:.16em;color:${C.faint};font-weight:600;text-transform:uppercase}
+.nv-eyebrow{font-size:11.5px;letter-spacing:.14em;color:${C.sub};font-weight:700;text-transform:uppercase}
 .nv-eyebrow-accent{color:${C.accent}}
+.nv-hero{background:linear-gradient(180deg,${C.accentTint} 0%,#fff 130px);border:1px solid #D6D2F4;box-shadow:0 10px 30px -16px rgba(75,67,214,.45)}
+.nv-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.nv-hero-eyebrow{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.16em;color:${C.accent};font-weight:700;text-transform:uppercase}
+.nv-hero-title{font-size:21px;font-weight:800;letter-spacing:-.02em;color:${C.ink};margin:7px 0 0;line-height:1.2}
 .nv-tag{display:inline-block;background:${C.canvas};border:1px solid ${C.line};border-radius:7px;padding:5px 10px;font-size:12.5px;margin:0 6px 6px 0;color:${C.sub}}
 .nv-badge{display:inline-block;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:6px;margin-right:8px;vertical-align:middle}
 .nv-badge.s{background:#EAF7F0;color:#1F9E6B;border:1px solid #BFE9D5}
@@ -1285,7 +1291,7 @@ const css = `
 .nv-ref-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid ${C.line}}
 .nv-ref-title{flex:1;font-size:13px;color:${C.ink};overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nv-ref-views{font-size:12px;color:${C.sub}}
-.nv-idea{border:1px solid ${C.line};border-radius:11px;padding:13px 14px;margin-top:11px;background:#FCFCFD}
+.nv-idea{border:1px solid ${C.line};border-left:3px solid ${C.accent};border-radius:11px;padding:14px 16px;margin-top:12px;background:#fff;box-shadow:0 1px 2px rgba(20,23,28,.04)}
 .nv-src{font-size:11px;color:${C.accent};font-weight:700;letter-spacing:.04em;border:1px solid ${C.accent};border-radius:999px;padding:2px 9px}
 .nv-demand{padding:9px 0;border-top:1px solid ${C.line}}
 .nv-demand:first-child{border-top:0}
