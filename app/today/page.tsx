@@ -107,7 +107,7 @@ export default function Today() {
       <div className="nv-wrap" style={{ paddingTop: 22 }}>
         <h1
           className="nv-serif"
-          style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-.01em", margin: "2px 0 5px", color: C.ink }}
+          style={{ fontSize: 36, fontWeight: 500, letterSpacing: "-.015em", margin: "2px 0 6px", color: C.ink }}
         >
           오늘의 영감
         </h1>

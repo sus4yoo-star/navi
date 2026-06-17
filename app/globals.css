@@ -41,7 +41,7 @@ a {
 /* 세리프 헤드라인 유틸 */
 .nv-serif {
   font-family: var(--font-serif);
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
 
