@@ -205,6 +205,11 @@ type Short = {
   reason: string;
   score?: number; // 정렬용 상대 우선순위(겉으로 표시 안 함)
 };
+type Plan = {
+  working?: { point: string; ref?: string }[];
+  demand?: { want: string; quote?: string }[];
+  ideas?: { title: string; format: string; hook?: string; why?: string; source?: string }[];
+};
 type Analysis = {
   summary?: string; // 영상 전체 핵심 요약
   good?: string[];
@@ -255,6 +260,10 @@ export default function Solution({
   const [bench, setBench] = useState<Sol["benchmark"]>(null);
   const [benchLoading, setBenchLoading] = useState(false);
 
+  // '뭘 만들지' 기획 엔진 — 댓글 수요 + 성과 근거(병렬 로딩)
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+
   const run = useCallback(async () => {
     if (!channelUrl) return;
     setLoading(true);
@@ -262,6 +271,7 @@ export default function Solution({
     setErr("");
     setSol(null);
     setBench(null);
+    setPlan(null);
     setChannel(null);
     setVideos([]);
     setPageToken(null);
@@ -293,6 +303,37 @@ export default function Solution({
       .then((b) => setBench(b.benchmark || null))
       .catch(() => setBench(null))
       .finally(() => setBenchLoading(false));
+
+    // 기획 엔진(병렬·캐시·재방문 복원) — 닫았다 와도 그날 결과 그대로
+    (async () => {
+      const planKey = `navi_plan_${channelUrl}_${today()}`;
+      const cached = loadCache(planKey);
+      if (cached?.status === "done" && cached.data) {
+        setPlan(cached.data);
+        return;
+      }
+      setPlanLoading(true);
+      try {
+        let pid = cached?.status === "pending" ? cached.id : undefined;
+        if (!pid) {
+          const r = await callJson("/api/plan/start", {
+            channel: base.channel,
+            videos: base.videos,
+            niche,
+          });
+          pid = r.id;
+          saveCache(planKey, { id: pid, status: "pending" });
+        }
+        const job = await pollJob(pid!);
+        setPlan(job?.analysis || null);
+        saveCache(planKey, { id: pid, status: "done", data: job?.analysis || null });
+      } catch {
+        setPlan(null);
+        delCache(planKey);
+      } finally {
+        setPlanLoading(false);
+      }
+    })();
 
     // 2단계: 진단·처방 (백그라운드 + 폴링 — LLM이 동기 함수 제한을 넘김)
     // 오늘자 결과를 기기에 캐시 → 다시 열면 즉시 표시(진행 중이면 이어받기).
@@ -442,6 +483,60 @@ export default function Solution({
           <button className="nv-btn" onClick={run}>
             다시 분석
           </button>
+        </div>
+      )}
+
+      {/* 히어로 — 작가(사전조사)+PD(기획): 이번 주 만들 영상 */}
+      {(planLoading || plan) && (
+        <div className="nv-card nv-card-accent">
+          <span className="nv-mono nv-eyebrow nv-eyebrow-accent">이번 주 만들 영상</span>
+          {planLoading && !plan && (
+            <p className="nv-reason" style={{ margin: "9px 0 0" }}>
+              요새 뜨는 영상과 시청자 반응을 모으는 중…
+            </p>
+          )}
+
+          {plan?.ideas?.map((idea, i) => (
+            <div key={i} className="nv-idea">
+              <div className="nv-cue-row">
+                <span className={"nv-badge " + (idea.format === "쇼츠" ? "s" : "l")}>
+                  {idea.format}
+                </span>
+                <span className="nv-src">{idea.source || "기획"}</span>
+              </div>
+              <p className="nv-hook" style={{ fontSize: 16, marginTop: 6 }}>{idea.title}</p>
+              {idea.hook && <div className="nv-firsthook" style={{ marginTop: 6 }}>첫 3초 · {idea.hook}</div>}
+              {idea.why && <p className="nv-reason" style={{ margin: "8px 0 0" }}>{idea.why}</p>}
+              <div className="nv-short-foot">
+                <span />
+                <Copy
+                  text={`${idea.title}\n첫 3초: ${idea.hook || ""}\n왜: ${idea.why || ""}`}
+                  label="복사"
+                />
+              </div>
+            </div>
+          ))}
+
+          {!!plan?.working?.length && (
+            <Collapse title="지금 이 분야에서 먹히는 것">
+              {plan.working.map((w, i) => (
+                <div key={i} className="nv-demand">
+                  <p className="nv-strat-pt">{w.point}</p>
+                  {w.ref && <p className="nv-evi-q">근거 · {w.ref}</p>}
+                </div>
+              ))}
+            </Collapse>
+          )}
+          {!!plan?.demand?.length && (
+            <Collapse title="시청자가 원하는 것 · 댓글 근거">
+              {plan.demand.map((d, i) => (
+                <div key={i} className="nv-demand">
+                  <p className="nv-strat-pt">{d.want}</p>
+                  {d.quote && <p className="nv-evi-q">“{d.quote}”</p>}
+                </div>
+              ))}
+            </Collapse>
+          )}
         </div>
       )}
 
@@ -995,6 +1090,11 @@ const css = `
 .nv-ref-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid ${C.line}}
 .nv-ref-title{flex:1;font-size:13px;color:${C.ink};overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nv-ref-views{font-size:12px;color:${C.sub}}
+.nv-idea{border:1px solid ${C.line};border-radius:11px;padding:13px 14px;margin-top:11px;background:#FCFCFD}
+.nv-src{font-size:11px;color:${C.accent};font-weight:700;letter-spacing:.04em;border:1px solid ${C.accent};border-radius:999px;padding:2px 9px}
+.nv-demand{padding:9px 0;border-top:1px solid ${C.line}}
+.nv-demand:first-child{border-top:0}
+.nv-evi-q{font-size:12.5px;color:${C.sub};margin:4px 0 0;padding-left:10px;border-left:2px solid ${C.line};line-height:1.55}
 .nv-read{font-size:14.5px;color:${C.ink};line-height:1.65;margin:11px 0 0}
 .nv-evi{font-size:12px;color:${C.live};line-height:1.5;margin-top:3px}
 .nv-strat-pt{font-size:14.5px;font-weight:700;margin-bottom:3px;color:${C.ink}}
