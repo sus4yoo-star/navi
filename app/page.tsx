@@ -6,7 +6,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { C, Wing } from "@/lib/ui";
+import { C, Wing, GRAD } from "@/lib/ui";
 import { supabase, signIn, signOut } from "@/lib/navi";
 import Solution from "./solution";
 

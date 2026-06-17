@@ -3,12 +3,12 @@
 // 순수 CSS/SVG(고정·pointer-events 없음·prefers-reduced-motion 존중). 콘텐츠 뒤(z-index:-1).
 
 const WINGS = [
-  { left: "8%", delay: "0s", dur: "27s", size: 16, op: 0.1 },
-  { left: "23%", delay: "9s", dur: "33s", size: 22, op: 0.08 },
-  { left: "45%", delay: "3.5s", dur: "29s", size: 14, op: 0.12 },
-  { left: "64%", delay: "13s", dur: "35s", size: 26, op: 0.07 },
-  { left: "81%", delay: "6s", dur: "31s", size: 18, op: 0.1 },
-  { left: "92%", delay: "17s", dur: "37s", size: 20, op: 0.08 },
+  { left: "8%", delay: "0s", dur: "27s", size: 16, op: 0.6 },
+  { left: "23%", delay: "9s", dur: "33s", size: 22, op: 0.45 },
+  { left: "45%", delay: "3.5s", dur: "29s", size: 14, op: 0.7 },
+  { left: "64%", delay: "13s", dur: "35s", size: 26, op: 0.4 },
+  { left: "81%", delay: "6s", dur: "31s", size: 18, op: 0.6 },
+  { left: "92%", delay: "17s", dur: "37s", size: 20, op: 0.5 },
 ];
 
 export default function Ambient() {
