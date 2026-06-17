@@ -126,9 +126,10 @@ function buildPrompt(format: string) {
 [바로 올릴 패키지] 각 쇼츠마다 화면자막(onscreen)·캡션(caption)·해시태그(hashtags)·제목(title)을 채워, 편집만 하면 바로 올릴 수 있게.
 
 먼저 영상 전체를 3~5줄로 요약(summary)하세요. 그다음 잘한 점(good)·개선점(improve).
+그리고 가장 중요한 '영감(inspiration)' 2~3개 — 단순 평가가 아니라, 이 영상의 강점·순간·반응에서 뻗어나갈 '새로운 콘텐츠 방향/각도/시리즈'를 크리에이터의 가슴이 뛰게 풀어주세요. 각 항목은 [한 줄 영감 제목] + [왜 그게 통할지 + 어떻게 펼칠지]를 한 호흡에. 구체에서 영감이 나오니, 이 영상의 실제 장면/대사에 뿌리내릴 것. 과장·이모지 금지.
 ${shortsRule}
 아래 키를 가진 JSON 하나만 출력. 그 외 텍스트·코드펜스 금지.
-{"summary":"영상 핵심 3~5줄","good":["잘한 점 — 실제 장면/말 근거"],"improve":["개선점 — 구체적·실행가능"],"titles":["더 끌리는 제목 후보"],"thumbnail":{"concept":"썸네일 구성","text":"썸네일 카피"},"tags":["태그"],"shorts":[{"cue":"0:50-1:08","transcript":"그 구간 실제 대사 그대로","hook":"첫 3초 훅","onscreen":"화면에 넣을 자막","caption":"업로드 캡션","hashtags":["#태그"],"title":"쇼츠 제목","reason":"왜 이 구간이 쇼츠감인지 구체적 근거"}],"next_ideas":["다음에 만들면 좋을 영상"]}`;
+{"summary":"영상 핵심 3~5줄","inspiration":[{"title":"영감 한 줄(가슴에 꽂히게)","how":"왜 통하고 어떻게 펼칠지 — 이 영상 근거 위에서"}],"good":["잘한 점 — 실제 장면/말 근거"],"improve":["개선점 — 구체적·실행가능"],"titles":["더 끌리는 제목 후보"],"thumbnail":{"concept":"썸네일 구성","text":"썸네일 카피"},"tags":["태그"],"shorts":[{"cue":"0:50-1:08","transcript":"그 구간 실제 대사 그대로","hook":"첫 3초 훅","onscreen":"화면에 넣을 자막","caption":"업로드 캡션","hashtags":["#태그"],"title":"쇼츠 제목","reason":"왜 이 구간이 쇼츠감인지 구체적 근거"}],"next_ideas":["다음에 만들면 좋을 영상"]}`;
 }
 
 function extractJson(text: string) {

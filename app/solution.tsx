@@ -259,6 +259,7 @@ type Brief = {
 };
 type Analysis = {
   summary?: string; // 영상 전체 핵심 요약
+  inspiration?: { title: string; how?: string }[]; // 이 영상이 열어주는 영감
   good?: string[];
   improve?: string[];
   titles?: string[];
@@ -1129,6 +1130,8 @@ function Deep({ a }: { a: Analysis }) {
     !!a.titles?.length || !!a.thumbnail || !!a.tags?.length || !!a.next_ideas?.length;
   const fullText = [
     a.summary && `[요약]\n${a.summary}`,
+    a.inspiration?.length &&
+      "[영감]\n" + a.inspiration.map((s) => `· ${s.title}${s.how ? `\n  ${s.how}` : ""}`).join("\n"),
     shorts.length &&
       "[쇼츠 추천]\n" +
         shorts
@@ -1152,6 +1155,21 @@ function Deep({ a }: { a: Analysis }) {
             <Copy text={fullText} label="전체 복사" />
           </div>
           <p className="nv-reason" style={{ marginTop: 8, fontSize: 14 }}>{a.summary}</p>
+        </div>
+      )}
+
+      {!!a.inspiration?.length && (
+        <div className="nv-inspblock">
+          <div className="nv-hero-eyebrow" style={{ color: C.accentInk, marginBottom: 4 }}>
+            <Wing size={15} />
+            <span className="nv-mono">이 영상이 열어주는 영감</span>
+          </div>
+          {a.inspiration.map((s, i) => (
+            <div key={i} className="nv-inspitem">
+              <p className="nv-inspitem-t">{s.title}</p>
+              {s.how && <p className="nv-reason" style={{ margin: "4px 0 0" }}>{s.how}</p>}
+            </div>
+          ))}
         </div>
       )}
 
@@ -1320,6 +1338,10 @@ a.nv-src{text-decoration:none}
 @media (max-width:520px){.nv-thumb{width:84px;height:47px}}
 .nv-deep{margin-top:12px;padding-top:12px;border-top:1px dashed ${C.line}}
 .nv-deep-block{background:rgba(255,255,255,.04);border:1px solid ${C.line};border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.nv-inspblock{background:${GRAD_SOFT};border:1px solid rgba(255,93,143,.3);border-radius:12px;padding:14px 16px;margin-bottom:10px;box-shadow:0 0 26px -12px rgba(255,93,143,.4)}
+.nv-inspitem{padding:9px 0;border-top:1px solid rgba(255,255,255,.08)}
+.nv-inspitem:first-of-type{border-top:0}
+.nv-inspitem-t{margin:0;font-size:15px;font-weight:800;letter-spacing:-.01em;color:#fff;line-height:1.4}
 .nv-copy{background:transparent;border:none;color:${C.accent};font-size:12px;cursor:pointer;padding:2px 4px;font-family:inherit;font-weight:600}
 .nv-copy-line{font-size:12.5px;color:${C.accent}}
 .nv-pulse{width:8px;height:8px;border-radius:50%;background:${C.accent};display:inline-block;animation:nvp 1.2s ease-in-out infinite}
