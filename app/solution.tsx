@@ -378,18 +378,19 @@ export default function Solution({
     }
     setLoading(false);
 
-    // 비교는 별도 요청으로 병렬 진행(메인 브리핑 속도에 영향 X).
-    // benchmarkUrl이 없어도 자동으로 '잘 되는 비슷한 채널'을 찾아 비교한다.
-    setBenchLoading(true);
-    callJson("/api/benchmark", {
-      channel: base.channel,
-      benchmarkUrl,
-      niche,
-      myVideos: (base.videos || []).map((v: Video) => ({ views: v.views, format: v.format })),
-    })
-      .then((b) => setBench(b.benchmark || null))
-      .catch(() => setBench(null))
-      .finally(() => setBenchLoading(false));
+    // '닮고 싶은 채널'을 명시적으로 넣었을 때만 1:1 비교(자동 비슷한 채널은 니치 레이더가 담당 — 중복 제거).
+    if (benchmarkUrl) {
+      setBenchLoading(true);
+      callJson("/api/benchmark", {
+        channel: base.channel,
+        benchmarkUrl,
+        niche,
+        myVideos: (base.videos || []).map((v: Video) => ({ views: v.views, format: v.format })),
+      })
+        .then((b) => setBench(b.benchmark || null))
+        .catch(() => setBench(null))
+        .finally(() => setBenchLoading(false));
+    }
 
     // 통합 브리핑(백그라운드+폴링·캐시·재방문 복원) — 정찰→진단→기획→전략을 하나로
     startBrief(base.channel, base.videos);
