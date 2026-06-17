@@ -31,6 +31,36 @@ async function callJson(url: string, body: unknown) {
   return data;
 }
 
+// 진행 중/완료된 작업을 기기에 기억 → 앱을 닫았다 돌아와도 결과를 다시 보여준다.
+// (PWA는 닫히면 화면 폴링이 멈추지만, 분석은 서버에서 끝나 DB에 저장돼 있다.)
+type Cache = { id?: string; status: "pending" | "done"; data?: any };
+function loadCache(key: string): Cache | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const v = localStorage.getItem(key);
+    return v ? (JSON.parse(v) as Cache) : null;
+  } catch {
+    return null;
+  }
+}
+function saveCache(key: string, val: Cache) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch {
+    /* 용량 초과 등은 무시 */
+  }
+}
+function delCache(key: string) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* noop */
+  }
+}
+const today = () => new Date().toISOString().slice(0, 10);
+
 type Video = {
   id: string;
   title: string;
@@ -137,19 +167,33 @@ export default function Solution({
     }
 
     // 2단계: 진단·처방 (백그라운드 + 폴링 — LLM이 동기 함수 제한을 넘김)
+    // 오늘자 결과를 기기에 캐시 → 다시 열면 즉시 표시(진행 중이면 이어받기).
+    const solKey = `navi_sol_${channelUrl}_${today()}`;
+    const cached = loadCache(solKey);
+    if (cached?.status === "done" && cached.data) {
+      setSol(cached.data);
+      return;
+    }
     setSolLoading(true);
     try {
-      const { id } = await callJson("/api/solution/start", {
-        channel: base.channel,
-        videos: base.videos,
-        tone,
-        purpose,
-        aspiration,
-      });
-      const job = await pollJob(id);
+      let id = cached?.status === "pending" ? cached.id : undefined;
+      if (!id) {
+        const r = await callJson("/api/solution/start", {
+          channel: base.channel,
+          videos: base.videos,
+          tone,
+          purpose,
+          aspiration,
+        });
+        id = r.id;
+        saveCache(solKey, { id, status: "pending" });
+      }
+      const job = await pollJob(id!);
       setSol(job?.analysis || null);
+      saveCache(solKey, { id, status: "done", data: job?.analysis || null });
     } catch (e: any) {
       setErr(e.message);
+      delCache(solKey);
     } finally {
       setSolLoading(false);
     }
@@ -168,25 +212,43 @@ export default function Solution({
     setDeepId(v.id);
     setDeep(null);
     setDeepErr("");
-    setDeepLoading(true);
     const videoUrl = `https://www.youtube.com/watch?v=${v.id}`;
+    const dkey = `navi_deep_${v.id}`;
+
+    // 이미 분석해 둔 영상이면 즉시 표시(닫았다 돌아와도 그대로)
+    if (v.format !== "쇼츠") {
+      const done = loadCache(dkey);
+      if (done?.status === "done" && done.data) {
+        setDeep(done.data);
+        return;
+      }
+    }
+
+    setDeepLoading(true);
     try {
       if (v.format === "쇼츠") {
         // 쇼츠는 빠르므로 동기 분석(즉시 결과)
         const j = await callJson("/api/analyze", { videoUrl, channelUrl, format: v.format });
         setDeep(j.analysis || null);
       } else {
-        // 롱폼은 길어서 백그라운드로 돌리고 결과를 폴링(타임아웃 방어)
-        const { id } = await callJson("/api/analyze/start", {
-          videoUrl,
-          channelUrl,
-          format: v.format,
-        });
-        const job = await pollJob(id, () => deepIdRef.current === v.id);
-        if (job?.analysis) setDeep(job.analysis);
+        // 롱폼은 길어서 백그라운드로 돌리고 결과를 폴링(타임아웃 방어).
+        // 진행 중 작업이 있으면 새로 시작하지 않고 이어받는다.
+        const cached = loadCache(dkey);
+        let id = cached?.status === "pending" ? cached.id : undefined;
+        if (!id) {
+          const r = await callJson("/api/analyze/start", { videoUrl, channelUrl, format: v.format });
+          id = r.id;
+          saveCache(dkey, { id, status: "pending" });
+        }
+        const job = await pollJob(id!, () => deepIdRef.current === v.id);
+        if (job?.analysis) {
+          setDeep(job.analysis);
+          saveCache(dkey, { id, status: "done", data: job.analysis });
+        }
       }
     } catch (e: any) {
       setDeepErr(e.message);
+      if (v.format !== "쇼츠") delCache(dkey);
     } finally {
       setDeepLoading(false);
     }
@@ -283,7 +345,7 @@ export default function Solution({
                   {deepLoading && (
                     <div className="nv-running" style={{ margin: "6px 0" }}>
                       <span className="nv-pulse" /> 나비가 이 영상을 직접 보는 중
-                      {v.format !== "쇼츠" && " — 긴 영상은 1~2분 걸려요"}
+                      {v.format !== "쇼츠" && " — 앱을 닫아도 서버에서 계속 분석돼요. 돌아와 다시 열면 결과가 있어요"}
                     </div>
                   )}
                   {deepErr && <p className="nv-err">{deepErr}</p>}
