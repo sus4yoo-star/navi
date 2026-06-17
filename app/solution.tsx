@@ -107,7 +107,7 @@ type Sol = {
   longform_solution?: { point: string; why: string }[];
   next_videos?: { title: string; format: string; angle: string; hook: string }[];
   this_week?: string[];
-  benchmark?: { name: string; summary: string; learn: string[] } | null;
+  benchmark?: { name: string; summary: string; learn: string[]; auto?: boolean } | null;
 };
 type Short = {
   cue?: string; // 시작-끝 타임코드
@@ -137,12 +137,14 @@ export default function Solution({
   purpose,
   aspiration,
   benchmarkUrl,
+  niche,
 }: {
   channelUrl: string;
   tone?: string;
   purpose?: string;
   aspiration?: string;
   benchmarkUrl?: string;
+  niche?: string;
 }) {
   const [loading, setLoading] = useState(false); // 1단계: 목록
   const [solLoading, setSolLoading] = useState(false); // 2단계: 진단
@@ -192,14 +194,13 @@ export default function Solution({
     }
     setLoading(false);
 
-    // 워너비 비교는 별도 요청으로 병렬 진행(메인 진단 속도에 영향 X)
-    if (benchmarkUrl) {
-      setBenchLoading(true);
-      callJson("/api/benchmark", { channel: base.channel, benchmarkUrl })
-        .then((b) => setBench(b.benchmark || null))
-        .catch(() => setBench(null))
-        .finally(() => setBenchLoading(false));
-    }
+    // 비교는 별도 요청으로 병렬 진행(메인 진단 속도에 영향 X).
+    // benchmarkUrl이 없어도 자동으로 '잘 되는 비슷한 채널'을 찾아 비교한다.
+    setBenchLoading(true);
+    callJson("/api/benchmark", { channel: base.channel, benchmarkUrl, niche })
+      .then((b) => setBench(b.benchmark || null))
+      .catch(() => setBench(null))
+      .finally(() => setBenchLoading(false));
 
     // 2단계: 진단·처방 (백그라운드 + 폴링 — LLM이 동기 함수 제한을 넘김)
     // 오늘자 결과를 기기에 캐시 → 다시 열면 즉시 표시(진행 중이면 이어받기).
@@ -232,7 +233,7 @@ export default function Solution({
     } finally {
       setSolLoading(false);
     }
-  }, [channelUrl, tone, purpose, aspiration, benchmarkUrl]);
+  }, [channelUrl, tone, purpose, aspiration, benchmarkUrl, niche]);
 
   useEffect(() => {
     run();
@@ -507,14 +508,18 @@ export default function Solution({
 
       {benchLoading && !bench && (
         <div className="nv-card nv-card-accent">
-          <span className="nv-mono nv-eyebrow nv-eyebrow-accent">닮고 싶은 채널과 비교</span>
-          <p className="nv-reason" style={{ margin: "9px 0 0" }}>닮고 싶은 채널을 읽는 중…</p>
+          <span className="nv-mono nv-eyebrow nv-eyebrow-accent">
+            {benchmarkUrl ? "닮고 싶은 채널과 비교" : "잘 되는 비슷한 채널과 비교"}
+          </span>
+          <p className="nv-reason" style={{ margin: "9px 0 0" }}>
+            {benchmarkUrl ? "닮고 싶은 채널을 읽는 중…" : "잘 되는 비슷한 채널을 찾는 중…"}
+          </p>
         </div>
       )}
       {bench && (
         <div className="nv-card nv-card-accent">
           <span className="nv-mono nv-eyebrow nv-eyebrow-accent">
-            닮고 싶은 채널과 비교
+            {bench.auto ? "잘 되는 비슷한 채널과 비교" : "닮고 싶은 채널과 비교"}
           </span>
           <p className="nv-hook" style={{ fontSize: 16, margin: "9px 0 5px" }}>
             {bench.name}
