@@ -1,15 +1,18 @@
+@import url("https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap");
+
 :root {
-  --canvas: #08080f;
-  --ink: #f3f4fb;
-  --accent: #6d5df6;
-  --accent3: #ff5d8f;
-  --grad: linear-gradient(100deg, #6d5df6 0%, #9b5de5 48%, #ff5d8f 100%);
+  --canvas: #f6f5f2;
+  --ink: #1a1a20;
+  --accent: #4b43d6;
+  --grad: linear-gradient(100deg, #4b43d6 0%, #7a5af0 100%);
+  --font-serif: "Nanum Myeongjo", "Apple SD Gothic Neo", serif;
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* 베이스 오프화이트는 html에, body는 투명 — 그 사이로 앰비언트가 잔잔히 흐른다 */
 html {
   margin: 0;
   padding: 0;
@@ -32,8 +35,14 @@ a {
 }
 
 ::selection {
-  background: rgba(155, 93, 229, 0.4);
-  color: #fff;
+  background: rgba(75, 67, 214, 0.16);
+}
+
+/* 세리프 헤드라인 유틸 */
+.nv-serif {
+  font-family: var(--font-serif);
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 /* 그라데이션 텍스트 유틸 */
@@ -45,60 +54,58 @@ a {
   color: transparent;
 }
 
-/* ─── 앰비언트: 무한한 영감 — 흐르는 네온 오로라 + 떠오르는 나비 날개 ─── */
+/* ─── 앰비언트: 무한한 영감 — 잔잔히 흐르는 옅은 오로라 + 천천히 떠오르는 나비 날개 ─── */
 .nv-ambient {
   position: fixed;
   inset: 0;
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
-  background: radial-gradient(120% 80% at 50% -10%, rgba(109, 93, 246, 0.12), transparent 60%);
 }
 .nv-aurora {
   position: absolute;
   border-radius: 50%;
   filter: blur(90px);
   will-change: transform;
-  mix-blend-mode: screen;
 }
 .nv-aurora.a1 {
-  width: 52vmax;
-  height: 52vmax;
+  width: 48vmax;
+  height: 48vmax;
   left: -16vmax;
   top: -18vmax;
-  background: radial-gradient(circle, #6d5df6 0%, transparent 68%);
-  opacity: 0.42;
-  animation: nvDrift1 24s ease-in-out infinite alternate;
+  background: radial-gradient(circle, #4b43d6 0%, transparent 70%);
+  opacity: 0.1;
+  animation: nvDrift1 28s ease-in-out infinite alternate;
 }
 .nv-aurora.a2 {
-  width: 46vmax;
-  height: 46vmax;
+  width: 42vmax;
+  height: 42vmax;
   right: -16vmax;
   bottom: -16vmax;
-  background: radial-gradient(circle, #ff5d8f 0%, transparent 68%);
-  opacity: 0.3;
-  animation: nvDrift2 30s ease-in-out infinite alternate;
+  background: radial-gradient(circle, #7a5af0 0%, transparent 70%);
+  opacity: 0.09;
+  animation: nvDrift2 34s ease-in-out infinite alternate;
 }
 .nv-aurora.a3 {
-  width: 40vmax;
-  height: 40vmax;
+  width: 34vmax;
+  height: 34vmax;
   left: 44%;
-  top: 36%;
-  background: radial-gradient(circle, #9b5de5 0%, transparent 70%);
-  opacity: 0.26;
-  animation: nvDrift3 36s ease-in-out infinite alternate;
+  top: 34%;
+  background: radial-gradient(circle, #4b43d6 0%, transparent 72%);
+  opacity: 0.05;
+  animation: nvDrift3 40s ease-in-out infinite alternate;
 }
 @keyframes nvDrift1 {
   from { transform: translate(0, 0) scale(1); }
-  to { transform: translate(9vmax, 7vmax) scale(1.18); }
+  to { transform: translate(8vmax, 6vmax) scale(1.14); }
 }
 @keyframes nvDrift2 {
   from { transform: translate(0, 0) scale(1); }
-  to { transform: translate(-8vmax, -6vmax) scale(1.14); }
+  to { transform: translate(-7vmax, -5vmax) scale(1.1); }
 }
 @keyframes nvDrift3 {
   from { transform: translate(0, 0) scale(1); }
-  to { transform: translate(-7vmax, 8vmax) scale(1.22); }
+  to { transform: translate(-6vmax, 7vmax) scale(1.18); }
 }
 .nv-fly {
   position: absolute;
@@ -108,14 +115,13 @@ a {
   animation-name: nvFly;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
-  filter: drop-shadow(0 0 6px rgba(123, 93, 230, 0.6));
 }
 @keyframes nvFly {
   0% { transform: translateY(0) translateX(0) rotate(-10deg); opacity: 0; }
-  12% { opacity: var(--op, 0.5); }
-  50% { transform: translateY(-58vh) translateX(3vw) rotate(10deg); }
-  88% { opacity: var(--op, 0.5); }
+  12% { opacity: var(--op, 0.1); }
+  88% { opacity: var(--op, 0.1); }
   100% { transform: translateY(-116vh) translateX(-2vw) rotate(-6deg); opacity: 0; }
+  50% { transform: translateY(-58vh) translateX(3vw) rotate(10deg); }
 }
 @media (prefers-reduced-motion: reduce) {
   .nv-aurora { animation: none; }

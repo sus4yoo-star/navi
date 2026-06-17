@@ -106,8 +106,8 @@ export default function Today() {
 
       <div className="nv-wrap" style={{ paddingTop: 22 }}>
         <h1
-          className="nv-grad-text"
-          style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-.03em", margin: "0 0 4px", display: "inline-block" }}
+          className="nv-serif"
+          style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-.01em", margin: "2px 0 5px", color: C.ink }}
         >
           오늘의 영감
         </h1>
@@ -138,8 +138,8 @@ export default function Today() {
         )}
 
         {iosBanner && (
-          <div className="nv-card" style={{ borderColor: "rgba(123,93,230,.45)", background: "rgba(123,93,230,.10)" }}>
-            <span className="nv-mono nv-eyebrow" style={{ color: C.accentInk }}>
+          <div className="nv-card" style={{ borderColor: "#D8D3F6", background: C.accentTint }}>
+            <span className="nv-mono nv-eyebrow" style={{ color: C.accent }}>
               홈 화면에 추가
             </span>
             <p style={{ fontSize: 13.5, color: C.sub, lineHeight: 1.6, margin: "8px 0 0" }}>
@@ -186,18 +186,18 @@ const css = `
 .nv-mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-variant-numeric:tabular-nums}
 .nv-muted{font-size:12px;color:${C.faint}}
 .nv-wrap{max-width:680px;margin:0 auto;padding:0 22px 48px}
-.nv-topbar{background:rgba(10,10,18,.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:0;z-index:20}
-.nv-topbar-in{display:flex;align-items:center;gap:11px;padding:16px 22px}
+.nv-topbar{background:rgba(246,245,242,.8);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid ${C.line};position:sticky;top:0;z-index:20}
+.nv-topbar-in{display:flex;align-items:center;gap:11px;padding:15px 22px}
 .nv-brand-link{display:flex;align-items:center;gap:10px;text-decoration:none}
 .nv-brand{font-family:var(--font-brand),'Space Grotesk',system-ui,sans-serif;font-size:23px;font-weight:700;letter-spacing:-.01em;background:${GRAD};-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
 .nv-top-right{margin-left:auto;display:flex;align-items:center;gap:15px}
-.nv-topbar-date{font-size:11.5px;color:rgba(255,255,255,.58)}
-.nv-toplink{background:none;border:none;color:rgba(255,255,255,.7);font-size:12.5px;font-family:inherit;cursor:pointer;text-decoration:none;padding:0;transition:color .14s}
-.nv-toplink:hover{color:#fff}
-.nv-link{background:none;border:none;color:${C.accentInk};font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:2px}
-.nv-card{background:${C.card};border:1px solid ${C.line};border-radius:16px;padding:18px 20px;margin-bottom:13px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 8px 30px -16px rgba(0,0,0,.6)}
+.nv-topbar-date{font-size:11.5px;color:${C.faint}}
+.nv-toplink{background:none;border:none;color:${C.sub};font-size:12.5px;font-family:inherit;cursor:pointer;text-decoration:none;padding:0;transition:color .14s}
+.nv-toplink:hover{color:${C.ink}}
+.nv-link{background:none;border:none;color:${C.accent};font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:2px}
+.nv-card{background:${C.card};border:1px solid ${C.line};border-radius:16px;padding:20px 22px;margin-bottom:13px;box-shadow:0 1px 2px rgba(26,26,32,.03),0 14px 36px -26px rgba(26,26,32,.22)}
 .nv-eyebrow{font-size:11px;letter-spacing:.16em;color:${C.faint};font-weight:600;text-transform:uppercase}
-.nv-chip{display:inline-flex;align-items:center;gap:7px;background:${C.accentTint};color:${C.accentInk};border:1px solid rgba(123,93,230,.45);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600}
+.nv-chip{display:inline-flex;align-items:center;gap:7px;background:${C.accentTint};color:${C.accentInk};border:1px solid #D8D3F6;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600}
 .nv-pulse{width:8px;height:8px;border-radius:50%;background:${C.accent};display:inline-block;animation:nvp 1.2s ease-in-out infinite}
 @keyframes nvp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
 `;

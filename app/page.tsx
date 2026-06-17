@@ -373,53 +373,53 @@ const css = `
 .nv-mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-variant-numeric:tabular-nums}
 .nv-wrap{max-width:780px;margin:0 auto;padding:0 22px}
 
-/* ── 다크 히어로 ── */
-.nv-hero{position:relative;overflow:hidden;background:transparent;color:#fff;border-bottom:1px solid rgba(255,255,255,.08)}
+/* ── 밝은 에디토리얼 히어로 ── */
+.nv-hero{position:relative;overflow:hidden;background:transparent;color:${C.ink};border-bottom:1px solid ${C.line}}
 .nv-hero-grid{position:absolute;inset:0;pointer-events:none;
-  background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);
-  background-size:34px 34px;
-  -webkit-mask-image:radial-gradient(120% 70% at 18% 0%,#000 0%,transparent 70%);
-  mask-image:radial-gradient(120% 70% at 18% 0%,#000 0%,transparent 70%)}
+  background-image:linear-gradient(rgba(75,67,214,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(75,67,214,.05) 1px,transparent 1px);
+  background-size:40px 40px;
+  -webkit-mask-image:radial-gradient(120% 70% at 18% 0%,#000 0%,transparent 65%);
+  mask-image:radial-gradient(120% 70% at 18% 0%,#000 0%,transparent 65%)}
 .nv-hero-top{position:relative;z-index:1;display:flex;align-items:center;gap:11px;padding-top:18px;padding-bottom:6px}
-.nv-brand-link{display:flex;align-items:center;gap:11px;text-decoration:none}
+.nv-brand-link{display:flex;align-items:center;gap:10px;text-decoration:none}
 .nv-brand{font-family:var(--font-brand),'Space Grotesk',system-ui,sans-serif;font-size:23px;font-weight:700;letter-spacing:-.01em;background:${GRAD};-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
 .nv-hero-nav{margin-left:auto;display:flex;align-items:center;gap:9px}
-.nv-hero-link{font-size:12.5px;color:rgba(255,255,255,.72);background:none;font-family:inherit;cursor:pointer;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 13px;text-decoration:none;transition:all .14s}
-.nv-hero-link:hover{border-color:rgba(255,255,255,.45);color:#fff}
-.nv-hero-body{position:relative;z-index:1;padding:26px 22px 44px}
-.nv-status{display:inline-flex;align-items:center;gap:8px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:5px 11px;margin-bottom:20px}
-.nv-live{width:7px;height:7px;border-radius:50%;background:#36E0A0;box-shadow:0 0 10px #36E0A0;display:inline-block;animation:nvp 1.4s ease-in-out infinite}
+.nv-hero-link{font-size:12.5px;color:${C.sub};background:#fff;font-family:inherit;cursor:pointer;border:1px solid ${C.line};border-radius:8px;padding:7px 13px;text-decoration:none;transition:all .14s}
+.nv-hero-link:hover{border-color:${C.accent};color:${C.accent}}
+.nv-hero-body{position:relative;z-index:1;padding:30px 22px 48px}
+.nv-status{display:inline-flex;align-items:center;gap:8px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${C.sub};background:#fff;border:1px solid ${C.line};border-radius:999px;padding:5px 11px;margin-bottom:22px}
+.nv-live{width:7px;height:7px;border-radius:50%;background:${C.live};box-shadow:0 0 9px ${C.live};display:inline-block;animation:nvp 1.4s ease-in-out infinite}
 @keyframes nvp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
-.nv-hero-h1{font-size:46px;line-height:1.12;font-weight:800;letter-spacing:-.035em;margin:0 0 18px;color:#fff}
+.nv-hero-h1{font-family:var(--font-serif);font-size:52px;line-height:1.16;font-weight:800;letter-spacing:-.01em;margin:0 0 20px;color:${C.ink}}
 .nv-accent{background:${GRAD};-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
-.nv-hero-sub{font-size:15px;line-height:1.7;color:rgba(255,255,255,.74);max-width:560px;margin:0 0 26px}
+.nv-hero-sub{font-size:15.5px;line-height:1.75;color:${C.sub};max-width:560px;margin:0 0 28px}
 .nv-cta-row{display:flex;gap:11px;flex-wrap:wrap;align-items:center;margin-bottom:13px}
-.nv-btn-oauth{display:inline-flex;align-items:center;gap:9px;background:#fff;color:#15171C;border:none;border-radius:10px;padding:13px 20px;font-size:14.5px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-.01em;transition:transform .05s,box-shadow .14s;box-shadow:0 1px 0 rgba(0,0,0,.04)}
-.nv-btn-oauth:hover{box-shadow:0 6px 22px rgba(0,0,0,.28)}
+.nv-btn-oauth{display:inline-flex;align-items:center;gap:9px;background:#fff;color:${C.ink};border:1px solid ${C.line};border-radius:11px;padding:13px 20px;font-size:14.5px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-.01em;transition:transform .05s,box-shadow .14s,border-color .14s}
+.nv-btn-oauth:hover{box-shadow:0 8px 22px -10px rgba(26,26,32,.3);border-color:${C.sub}}
 .nv-btn-oauth:active{transform:translateY(1px)}
-.nv-btn-kakao{background:#FEE500;color:#191600}
+.nv-btn-kakao{background:#FEE500;color:#191600;border-color:#F4DC00}
 .nv-btn-lg{padding:14px 24px;font-size:15.5px}
-.nv-hero-foot{font-size:11.5px;color:rgba(255,255,255,.5);letter-spacing:.02em;margin:0}
+.nv-hero-foot{font-size:11.5px;color:${C.faint};letter-spacing:.02em;margin:0}
 
 /* ── 라이트 본문 ── */
 .nv-try-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:18px}
-.nv-h2{font-size:21px;font-weight:700;letter-spacing:-.02em;margin:7px 0 5px;color:${C.ink}}
+.nv-h2{font-family:var(--font-serif);font-size:24px;font-weight:700;letter-spacing:-.005em;margin:7px 0 5px;color:${C.ink}}
 .nv-muted2{font-size:13.5px;color:${C.sub};line-height:1.6;margin:0}
 .nv-eyebrow{font-size:11px;letter-spacing:.16em;color:${C.faint};font-weight:600;text-transform:uppercase}
 .nv-eyebrow-accent{color:${C.accent}}
-.nv-field{width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid ${C.line};border-radius:10px;padding:13px 15px;font-size:14.5px;color:${C.ink};font-family:inherit;outline:none;transition:border-color .14s,box-shadow .14s}
+.nv-field{width:100%;box-sizing:border-box;background:#fff;border:1px solid ${C.line};border-radius:10px;padding:13px 15px;font-size:14.5px;color:${C.ink};font-family:inherit;outline:none;transition:border-color .14s,box-shadow .14s}
 .nv-field::placeholder{color:${C.faint}}
 .nv-field:focus{border-color:${C.accent};box-shadow:0 0 0 3px ${C.accentTint}}
 .nv-label{font-size:13px;color:${C.ink};font-weight:600;margin:0 0 7px;display:block}
-.nv-btn{background:${GRAD};color:#fff;border:none;border-radius:11px;padding:13px 19px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:box-shadow .16s,transform .05s,filter .16s;letter-spacing:-.01em;box-shadow:0 6px 20px -6px rgba(123,93,230,.5)}
-.nv-btn:hover:not(:disabled){box-shadow:0 10px 30px -6px rgba(255,93,143,.5);filter:brightness(1.08)}
+.nv-btn{background:${C.accent};color:#fff;border:none;border-radius:11px;padding:13px 19px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:box-shadow .16s,transform .05s,filter .16s;letter-spacing:-.01em;box-shadow:0 6px 18px -8px rgba(75,67,214,.5)}
+.nv-btn:hover:not(:disabled){box-shadow:0 10px 26px -8px rgba(75,67,214,.5);filter:brightness(1.05)}
 .nv-btn:active:not(:disabled){transform:translateY(1px)}
 .nv-btn:disabled{opacity:.45;cursor:default}
-.nv-ghost{background:rgba(255,255,255,.04);border:1px solid ${C.line};color:${C.sub};border-radius:9px;padding:8px 13px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .14s}
-.nv-ghost:hover{border-color:${C.accent};color:${C.ink}}
-.nv-card{background:${C.card};border:1px solid ${C.line};border-radius:16px;padding:20px 22px;margin-bottom:14px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 8px 30px -16px rgba(0,0,0,.6)}
-.nv-card-accent{background:${GRAD_SOFT};border-color:rgba(123,93,230,.45);box-shadow:0 10px 34px -14px rgba(123,93,230,.5)}
-.nv-chip{display:inline-block;background:rgba(255,255,255,.05);border:1px solid ${C.line};border-radius:9px;padding:8px 13px;font-size:13px;margin:0 7px 7px 0;color:${C.sub};font-weight:500;transition:all .12s}
+.nv-ghost{background:#fff;border:1px solid ${C.line};color:${C.sub};border-radius:9px;padding:8px 13px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .14s}
+.nv-ghost:hover{border-color:${C.accent};color:${C.accent}}
+.nv-card{background:${C.card};border:1px solid ${C.line};border-radius:16px;padding:22px 24px;margin-bottom:14px;box-shadow:0 1px 2px rgba(26,26,32,.03),0 14px 36px -26px rgba(26,26,32,.22)}
+.nv-card-accent{background:${GRAD_SOFT};border-color:#D8D3F6}
+.nv-chip{display:inline-block;background:#fff;border:1px solid ${C.line};border-radius:9px;padding:8px 13px;font-size:13px;margin:0 7px 7px 0;color:${C.sub};font-weight:500;transition:all .12s}
 .nv-pick{cursor:pointer;user-select:none}
 .nv-pick.on{background:${C.accentTint};color:${C.accentInk};border-color:${C.accent}}
 .nv-step{display:flex;gap:8px;align-items:center;font-size:12px;color:${C.sub};margin:6px 0 20px;letter-spacing:.02em;font-weight:500}
@@ -427,7 +427,7 @@ const css = `
 .nv-dot{width:6px;height:6px;border-radius:50%;background:${C.line}}
 .nv-dot.on{background:${C.accent};box-shadow:0 0 0 3px ${C.accentTint}}
 .nv-pulse{width:8px;height:8px;border-radius:50%;background:${C.accent};display:inline-block;animation:nvp 1.2s ease-in-out infinite}
-.nv-impression{font-size:17.5px;font-weight:700;margin:10px 0 5px;line-height:1.45;letter-spacing:-.01em;color:${C.ink}}
+.nv-impression{font-family:var(--font-serif);font-size:19px;font-weight:700;margin:10px 0 5px;line-height:1.5;letter-spacing:-.005em;color:${C.ink}}
 .nv-impression-sub{font-size:13px;color:${C.sub};margin:0 0 18px;line-height:1.6}
 .nv-profile{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .nv-profile-txt{font-size:13.5px;color:${C.ink};line-height:1.7}
@@ -436,5 +436,5 @@ const css = `
 .nv-hint{font-size:11.5px;color:${C.faint};margin:14px 0 0;line-height:1.6}
 .nv-h{font-size:15.5px;font-weight:700;margin:0 0 10px;letter-spacing:-.01em;color:${C.ink}}
 
-@media (max-width:560px){.nv-hero-h1{font-size:30px}}
+@media (max-width:560px){.nv-hero-h1{font-size:38px}}
 `;
