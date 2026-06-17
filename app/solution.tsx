@@ -545,9 +545,12 @@ export default function Solution({
             <div>
               <div className="nv-hero-eyebrow">
                 <Wing size={15} />
-                <span className="nv-mono">영감 레이더 · 바깥에서 배운다</span>
+                <span className="nv-mono">영감 레이더</span>
               </div>
               <h2 className="nv-hero-title">여기서 영감을 얻어오세요</h2>
+              <p className="nv-radar-promise">
+                주제는 달라도 괜찮아요 — 차용할 만한 영감을 골라왔어요.
+              </p>
             </div>
             {channel && (brief || briefErr) && (
               <button
@@ -1306,6 +1309,7 @@ const css = `
 .nv-spark svg{flex:none;margin-top:3px}
 .nv-spark p{margin:0;font-size:17px;line-height:1.5;font-weight:800;letter-spacing:-.015em;color:#fff}
 .nv-radar .nv-hero-eyebrow{color:${C.live}}
+.nv-radar-promise{margin:8px 0 0;font-size:13.5px;line-height:1.6;color:${C.sub};max-width:480px}
 a.nv-src{text-decoration:none}
 .nv-co-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;font-size:11.5px;color:${C.sub}}
 .nv-co-swipe{color:${C.live};font-weight:600;white-space:nowrap;font-size:11px}
