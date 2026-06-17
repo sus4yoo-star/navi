@@ -1303,11 +1303,11 @@ const css = `
 .nv-hero{background:linear-gradient(180deg,${C.accentTint} 0%,#fff 150px);border:1px solid #DEDAF6}
 .nv-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .nv-hero-eyebrow{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.16em;color:${C.accent};font-weight:700;text-transform:uppercase}
-.nv-hero-title{font-family:var(--font-serif);font-size:27px;font-weight:600;letter-spacing:-.01em;margin:9px 0 0;line-height:1.3;color:${C.ink}}
+.nv-hero-title{font-family:var(--font-serif);font-size:22px;font-weight:500;letter-spacing:-.01em;margin:9px 0 0;line-height:1.32;color:${C.ink}}
 .nv-radar{background:linear-gradient(180deg,#EFFBF5 0%,#fff 130px);border:1px solid #CFEBDC}
 .nv-spark{display:flex;gap:12px;align-items:flex-start;margin:16px 0 2px;padding:17px 19px;border-radius:14px;background:${C.accentTint};border:1px solid #DEDAF6}
 .nv-spark svg{flex:none;margin-top:4px}
-.nv-spark p{margin:0;font-family:var(--font-serif);font-size:18px;line-height:1.65;font-weight:500;letter-spacing:-.005em;color:${C.accentInk}}
+.nv-spark p{margin:0;font-family:var(--font-serif);font-size:16.5px;line-height:1.65;font-weight:500;letter-spacing:-.005em;color:${C.accentInk}}
 .nv-radar .nv-hero-eyebrow{color:${C.live}}
 .nv-radar-promise{margin:9px 0 0;font-size:13.5px;line-height:1.6;color:${C.sub};max-width:480px}
 a.nv-src{text-decoration:none}
@@ -1345,13 +1345,13 @@ a.nv-src{text-decoration:none}
 .nv-inspblock{background:${C.accentTint};border:1px solid #DEDAF6;border-radius:12px;padding:15px 17px;margin-bottom:10px}
 .nv-inspitem{padding:9px 0;border-top:1px solid #DEDAF6}
 .nv-inspitem:first-of-type{border-top:0}
-.nv-inspitem-t{margin:0;font-family:var(--font-serif);font-size:16px;font-weight:600;letter-spacing:-.005em;color:${C.accentInk};line-height:1.5}
+.nv-inspitem-t{margin:0;font-family:var(--font-serif);font-size:15px;font-weight:500;letter-spacing:-.005em;color:${C.accentInk};line-height:1.55}
 .nv-copy{background:transparent;border:none;color:${C.accent};font-size:12px;cursor:pointer;padding:2px 4px;font-family:inherit;font-weight:600}
 .nv-copy-line{font-size:12.5px;color:${C.accent}}
 .nv-pulse{width:8px;height:8px;border-radius:50%;background:${C.accent};display:inline-block;animation:nvp 1.2s ease-in-out infinite}
 @keyframes nvp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
 .nv-running{display:flex;align-items:center;gap:9px;color:${C.accent};font-size:12.5px;margin:4px 2px 16px;letter-spacing:.04em;font-family:ui-monospace,'SF Mono',Menlo,monospace}
-.nv-h{font-family:var(--font-serif);font-size:16.5px;font-weight:600;margin:0 0 10px;letter-spacing:-.005em;color:${C.ink}}
+.nv-h{font-family:var(--font-serif);font-size:15.5px;font-weight:500;margin:0 0 10px;letter-spacing:-.005em;color:${C.ink}}
 .nv-row{padding:12px 0;border-top:1px solid ${C.line}}
 .nv-row.first{border-top:none}
 .nv-row-flex{display:flex;justify-content:space-between;align-items:center}

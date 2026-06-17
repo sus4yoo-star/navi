@@ -390,7 +390,7 @@ const css = `
 .nv-status{display:inline-flex;align-items:center;gap:8px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${C.sub};background:#fff;border:1px solid ${C.line};border-radius:999px;padding:5px 11px;margin-bottom:22px}
 .nv-live{width:7px;height:7px;border-radius:50%;background:${C.live};box-shadow:0 0 9px ${C.live};display:inline-block;animation:nvp 1.4s ease-in-out infinite}
 @keyframes nvp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
-.nv-hero-h1{font-family:var(--font-serif);font-size:50px;line-height:1.22;font-weight:500;letter-spacing:-.015em;margin:0 0 20px;color:${C.ink}}
+.nv-hero-h1{font-family:var(--font-serif);font-size:40px;line-height:1.28;font-weight:400;letter-spacing:-.015em;margin:0 0 20px;color:${C.ink}}
 .nv-accent{background:${GRAD};-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
 .nv-hero-sub{font-size:15.5px;line-height:1.75;color:${C.sub};max-width:560px;margin:0 0 28px}
 .nv-cta-row{display:flex;gap:11px;flex-wrap:wrap;align-items:center;margin-bottom:13px}
@@ -403,7 +403,7 @@ const css = `
 
 /* ── 라이트 본문 ── */
 .nv-try-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:18px}
-.nv-h2{font-family:var(--font-serif);font-size:24px;font-weight:600;letter-spacing:-.005em;margin:7px 0 5px;color:${C.ink}}
+.nv-h2{font-family:var(--font-serif);font-size:20px;font-weight:500;letter-spacing:-.005em;margin:7px 0 5px;color:${C.ink}}
 .nv-muted2{font-size:13.5px;color:${C.sub};line-height:1.6;margin:0}
 .nv-eyebrow{font-size:11px;letter-spacing:.16em;color:${C.faint};font-weight:600;text-transform:uppercase}
 .nv-eyebrow-accent{color:${C.accent}}
@@ -427,7 +427,7 @@ const css = `
 .nv-dot{width:6px;height:6px;border-radius:50%;background:${C.line}}
 .nv-dot.on{background:${C.accent};box-shadow:0 0 0 3px ${C.accentTint}}
 .nv-pulse{width:8px;height:8px;border-radius:50%;background:${C.accent};display:inline-block;animation:nvp 1.2s ease-in-out infinite}
-.nv-impression{font-family:var(--font-serif);font-size:19px;font-weight:600;margin:10px 0 5px;line-height:1.55;letter-spacing:-.005em;color:${C.ink}}
+.nv-impression{font-family:var(--font-serif);font-size:17px;font-weight:500;margin:10px 0 5px;line-height:1.6;letter-spacing:-.005em;color:${C.ink}}
 .nv-impression-sub{font-size:13px;color:${C.sub};margin:0 0 18px;line-height:1.6}
 .nv-profile{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .nv-profile-txt{font-size:13.5px;color:${C.ink};line-height:1.7}
@@ -436,5 +436,5 @@ const css = `
 .nv-hint{font-size:11.5px;color:${C.faint};margin:14px 0 0;line-height:1.6}
 .nv-h{font-size:15.5px;font-weight:700;margin:0 0 10px;letter-spacing:-.01em;color:${C.ink}}
 
-@media (max-width:560px){.nv-hero-h1{font-size:38px}}
+@media (max-width:560px){.nv-hero-h1{font-size:32px}}
 `;
