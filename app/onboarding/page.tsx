@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase, signIn, saveProfile, signOut } from "@/lib/navi";
-import { C, Wing } from "@/lib/ui";
+import { C, Wing, GRAD } from "@/lib/ui";
 
 const TONES = [
   "감성·스토리형",
@@ -197,7 +197,7 @@ export default function Onboarding() {
             </div>
 
             {proposed && (
-              <div className="nv-card" style={{ background: "#FBFBFE", borderColor: C.accent }}>
+              <div className="nv-card" style={{ background: "rgba(123,93,230,.10)", borderColor: "rgba(123,93,230,.45)" }}>
                 <span className="nv-mono nv-eyebrow">step 3 · 나비의 첫인상</span>
                 <p
                   style={{
@@ -277,22 +277,22 @@ export default function Onboarding() {
 const css = `
 .nv-mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-variant-numeric:tabular-nums}
 .nv-wrap{max-width:680px;margin:0 auto;padding:0 22px 48px}
-.nv-topbar{background:#0F1115;border-bottom:1px solid rgba(255,255,255,.08)}
-.nv-topbar-in{display:flex;align-items:center;gap:11px;padding:18px 22px}
-.nv-brand-link{display:flex;align-items:center;gap:11px;text-decoration:none}
-.nv-brand{font-family:var(--font-brand),'Space Grotesk',system-ui,sans-serif;font-size:23px;font-weight:700;letter-spacing:-.01em;color:#fff}
+.nv-topbar{background:rgba(10,10,18,.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.08)}
+.nv-topbar-in{display:flex;align-items:center;gap:11px;padding:16px 22px}
+.nv-brand-link{display:flex;align-items:center;gap:10px;text-decoration:none}
+.nv-brand{font-family:var(--font-brand),'Space Grotesk',system-ui,sans-serif;font-size:23px;font-weight:700;letter-spacing:-.01em;background:${GRAD};-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
 .nv-top-right{margin-left:auto;display:flex;align-items:center;gap:15px}
 .nv-topbar-date{font-size:11.5px;color:rgba(255,255,255,.58)}
 .nv-toplink{background:none;border:none;color:rgba(255,255,255,.7);font-size:12.5px;font-family:inherit;cursor:pointer;text-decoration:none;padding:0;transition:color .14s}
 .nv-toplink:hover{color:#fff}
-.nv-field{width:100%;box-sizing:border-box;background:${C.card};border:1.5px solid #D5D8E1;border-radius:10px;padding:13px 15px;font-size:14.5px;color:${C.ink};font-family:inherit;outline:none;transition:border-color .14s,box-shadow .14s}
-.nv-field::placeholder{color:#A6ABB6}
+.nv-field{width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid ${C.line};border-radius:10px;padding:13px 15px;font-size:14.5px;color:${C.ink};font-family:inherit;outline:none;transition:border-color .14s,box-shadow .14s}
+.nv-field::placeholder{color:${C.faint}}
 .nv-field:focus{border-color:${C.accent};box-shadow:0 0 0 3px ${C.accentTint}}
 .nv-label{font-size:13px;color:${C.ink};font-weight:600;margin:0 0 7px;display:block}
-.nv-btn{background:${C.accent};color:#fff;border:none;border-radius:10px;padding:13px 16px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:box-shadow .14s,transform .05s;letter-spacing:-.01em}
-.nv-btn:hover:not(:disabled){box-shadow:0 6px 20px rgba(75,67,214,.32)}.nv-btn:active:not(:disabled){transform:translateY(1px)}.nv-btn:disabled{opacity:.45;cursor:default}
-.nv-card{background:${C.card};border:1px solid ${C.line};border-radius:14px;padding:20px 22px;margin-bottom:14px;box-shadow:0 1px 2px rgba(20,23,28,.04),0 8px 24px -18px rgba(20,23,28,.18)}
-.nv-chip{display:inline-block;background:${C.card};border:1.5px solid ${C.line};border-radius:9px;padding:8px 13px;font-size:13px;margin:0 7px 7px 0;color:${C.sub};font-weight:500;transition:all .12s}
+.nv-btn{background:${GRAD};color:#fff;border:none;border-radius:11px;padding:13px 17px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:box-shadow .16s,transform .05s,filter .16s;letter-spacing:-.01em;box-shadow:0 6px 20px -6px rgba(123,93,230,.5)}
+.nv-btn:hover:not(:disabled){box-shadow:0 10px 30px -6px rgba(255,93,143,.5);filter:brightness(1.08)}.nv-btn:active:not(:disabled){transform:translateY(1px)}.nv-btn:disabled{opacity:.45;cursor:default}
+.nv-card{background:${C.card};border:1px solid ${C.line};border-radius:16px;padding:20px 22px;margin-bottom:14px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 8px 30px -16px rgba(0,0,0,.6)}
+.nv-chip{display:inline-block;background:rgba(255,255,255,.05);border:1px solid ${C.line};border-radius:9px;padding:8px 13px;font-size:13px;margin:0 7px 7px 0;color:${C.sub};font-weight:500;transition:all .12s}
 .nv-pick{cursor:pointer;user-select:none}
 .nv-pick.on{background:${C.accentTint};color:${C.accentInk};border-color:${C.accent}}
 .nv-eyebrow{font-size:11px;letter-spacing:.16em;color:${C.faint};font-weight:600;text-transform:uppercase}
