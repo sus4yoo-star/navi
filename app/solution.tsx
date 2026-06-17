@@ -309,6 +309,24 @@ export default function Solution({
   const [briefLoading, setBriefLoading] = useState(false);
   const [briefErr, setBriefErr] = useState("");
 
+  // 긴 정찰 동안 단계별 메시지 순환(체감 속도)
+  const [loadStep, setLoadStep] = useState(0);
+  useEffect(() => {
+    if (!briefLoading) {
+      setLoadStep(0);
+      return;
+    }
+    const t = setInterval(() => setLoadStep((s) => s + 1), 4000);
+    return () => clearInterval(t);
+  }, [briefLoading]);
+  const LOAD_MSGS = [
+    "비슷한 결의 지금 활발한 채널들을 정찰하는 중…",
+    "그 채널들의 시청자 반응(댓글)을 읽는 중…",
+    "내 채널의 현재 위치를 진단하는 중…",
+    "이번 주 만들 영상을 기획하는 중…",
+    "거의 다 됐어요. 정리하는 중…",
+  ];
+
   const startBrief = useCallback(
     async (ch: any, vids: Video[], force = false) => {
       if (!ch) return;
@@ -542,7 +560,7 @@ export default function Solution({
 
           {briefLoading && !brief && (
             <div className="nv-running" style={{ margin: "14px 2px 4px" }}>
-              <span className="nv-pulse" /> 비슷한 채널 정찰 → 진단 → 기획까지 준비하는 중…
+              <span className="nv-pulse" /> {LOAD_MSGS[Math.min(loadStep, LOAD_MSGS.length - 1)]}
             </div>
           )}
           {briefErr && !briefLoading && (
