@@ -109,8 +109,10 @@ async function analyzeVideo(videoUrl: string, statsCtx: string) {
         ],
         generationConfig: {
           temperature: 0.4,
-          maxOutputTokens: 3072,
+          maxOutputTokens: 4096,
           responseMimeType: "application/json",
+          // 2.5-flash의 thinking이 출력 토큰을 먹어 빈 응답 나는 것 방지 + 속도↑
+          thinkingConfig: { thinkingBudget: 0 },
         },
       }),
     }

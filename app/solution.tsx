@@ -68,7 +68,8 @@ export default function Solution({
   purpose?: string;
   aspiration?: string;
 }) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // 1단계: 목록
+  const [solLoading, setSolLoading] = useState(false); // 2단계: 진단
   const [err, setErr] = useState("");
   const [channel, setChannel] = useState<{ name: string; subscribers: number; videoCount: number } | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
@@ -82,21 +83,40 @@ export default function Solution({
   const run = useCallback(async () => {
     if (!channelUrl) return;
     setLoading(true);
+    setSolLoading(false);
     setErr("");
     setSol(null);
     setChannel(null);
     setVideos([]);
     setDeepId(null);
     setDeep(null);
+    let base: any;
     try {
-      const j = await callJson("/api/channel", { channelUrl, tone, purpose, aspiration });
-      setChannel(j.channel || null);
-      setVideos(j.videos || []);
-      setSol(j.solution || null);
+      // 1단계: 채널 + 영상 목록 (YouTube만 — 빠름)
+      base = await callJson("/api/channel", { channelUrl });
+      setChannel(base.channel || null);
+      setVideos(base.videos || []);
+    } catch (e: any) {
+      setErr(e.message);
+      setLoading(false);
+      return;
+    }
+    setLoading(false);
+    // 2단계: 진단·처방 (모델 — 뒤이어 채워짐)
+    setSolLoading(true);
+    try {
+      const s = await callJson("/api/solution", {
+        channel: base.channel,
+        videos: base.videos,
+        tone,
+        purpose,
+        aspiration,
+      });
+      setSol(s.solution || null);
     } catch (e: any) {
       setErr(e.message);
     } finally {
-      setLoading(false);
+      setSolLoading(false);
     }
   }, [channelUrl, tone, purpose, aspiration]);
 
@@ -133,7 +153,7 @@ export default function Solution({
 
       {loading && (
         <div className="nv-running">
-          <span className="nv-pulse" /> 최근 영상 읽고 채널 진단 중
+          <span className="nv-pulse" /> 최근 영상 불러오는 중
         </div>
       )}
       {err && (
@@ -154,7 +174,13 @@ export default function Solution({
             {channel.name} · 구독자 {channel.subscribers.toLocaleString()} · 영상{" "}
             {channel.videoCount.toLocaleString()}개
           </div>
-          {sol?.read && <p className="nv-read">{sol.read}</p>}
+          {sol?.read ? (
+            <p className="nv-read">{sol.read}</p>
+          ) : solLoading ? (
+            <div className="nv-running" style={{ margin: "10px 0 0" }}>
+              <span className="nv-pulse" /> 채널 진단 작성 중
+            </div>
+          ) : null}
         </div>
       )}
 
