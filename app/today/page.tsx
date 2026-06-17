@@ -104,16 +104,11 @@ export default function Today() {
     <div style={{ minHeight: "100%" }}>
       <style>{css}</style>
 
-      <div style={{ borderBottom: `1px solid ${C.line}`, background: C.card }}>
-        <div
-          className="nv-wrap"
-          style={{ padding: "20px 22px 18px", display: "flex", alignItems: "center", gap: 11 }}
-        >
+      <div className="nv-topbar">
+        <div className="nv-wrap nv-topbar-in">
           <Wing />
-          <span style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-.02em" }}>나비</span>
-          <span className="nv-mono" style={{ fontSize: 11.5, color: C.faint, marginLeft: "auto" }}>
-            {todayLabel}
-          </span>
+          <span className="nv-brand">나비</span>
+          <span className="nv-mono nv-topbar-date">{todayLabel}</span>
         </div>
       </div>
 
@@ -272,10 +267,14 @@ const css = `
 .nv-mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-variant-numeric:tabular-nums}
 .nv-muted{font-size:12px;color:${C.faint}}
 .nv-wrap{max-width:680px;margin:0 auto;padding:0 22px 48px}
-.nv-link{background:none;border:none;color:${C.sub};font-size:12.5px;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:2px}
-.nv-card{background:${C.card};border:1px solid ${C.line};border-radius:14px;padding:18px 20px;margin-bottom:13px;box-shadow:0 1px 2px rgba(20,23,28,.03)}
-.nv-eyebrow{font-size:11px;letter-spacing:.16em;color:${C.faint};font-weight:500;text-transform:uppercase}
-.nv-chip{display:inline-flex;align-items:center;gap:7px;background:${C.accentTint};color:${C.accentInk};border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:500}
+.nv-topbar{background:#0F1115;border-bottom:1px solid rgba(255,255,255,.08)}
+.nv-topbar-in{display:flex;align-items:center;gap:11px;padding:18px 22px}
+.nv-brand{font-size:22px;font-weight:700;letter-spacing:-.02em;color:#fff}
+.nv-topbar-date{font-size:11.5px;color:rgba(255,255,255,.58);margin-left:auto}
+.nv-link{background:none;border:none;color:${C.accent};font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:2px}
+.nv-card{background:${C.card};border:1px solid ${C.line};border-radius:14px;padding:18px 20px;margin-bottom:13px;box-shadow:0 1px 2px rgba(20,23,28,.04),0 8px 24px -18px rgba(20,23,28,.18)}
+.nv-eyebrow{font-size:11px;letter-spacing:.16em;color:${C.faint};font-weight:600;text-transform:uppercase}
+.nv-chip{display:inline-flex;align-items:center;gap:7px;background:${C.accentTint};color:${C.accentInk};border:1px solid ${C.accent};border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600}
 .nv-pulse{width:8px;height:8px;border-radius:50%;background:${C.accent};display:inline-block;animation:nvp 1.2s ease-in-out infinite}
 @keyframes nvp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
 .nv-row{padding:10px 0;border-top:1px solid ${C.line}}

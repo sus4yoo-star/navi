@@ -96,16 +96,11 @@ export default function Onboarding() {
     <div style={{ minHeight: "100%" }}>
       <style>{css}</style>
 
-      <div style={{ borderBottom: `1px solid ${C.line}`, background: C.card }}>
-        <div
-          className="nv-wrap"
-          style={{ padding: "20px 22px 18px", display: "flex", alignItems: "center", gap: 11 }}
-        >
+      <div className="nv-topbar">
+        <div className="nv-wrap nv-topbar-in">
           <Wing />
-          <span style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-.02em" }}>나비</span>
-          <span className="nv-mono" style={{ fontSize: 11.5, color: C.faint, marginLeft: "auto" }}>
-            가입 · 한 번만
-          </span>
+          <span className="nv-brand">나비</span>
+          <span className="nv-mono nv-topbar-date">가입 · 한 번만</span>
         </div>
       </div>
 
@@ -261,15 +256,19 @@ export default function Onboarding() {
 const css = `
 .nv-mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-variant-numeric:tabular-nums}
 .nv-wrap{max-width:680px;margin:0 auto;padding:0 22px 48px}
-.nv-field{width:100%;box-sizing:border-box;background:${C.card};border:1px solid ${C.line};border-radius:9px;padding:12px 14px;font-size:14px;color:${C.ink};font-family:inherit;outline:none;transition:border-color .14s,box-shadow .14s}
-.nv-field::placeholder{color:${C.faint}}
+.nv-topbar{background:#0F1115;border-bottom:1px solid rgba(255,255,255,.08)}
+.nv-topbar-in{display:flex;align-items:center;gap:11px;padding:18px 22px}
+.nv-brand{font-size:22px;font-weight:700;letter-spacing:-.02em;color:#fff}
+.nv-topbar-date{font-size:11.5px;color:rgba(255,255,255,.58);margin-left:auto}
+.nv-field{width:100%;box-sizing:border-box;background:${C.card};border:1.5px solid #D5D8E1;border-radius:10px;padding:13px 15px;font-size:14.5px;color:${C.ink};font-family:inherit;outline:none;transition:border-color .14s,box-shadow .14s}
+.nv-field::placeholder{color:#A6ABB6}
 .nv-field:focus{border-color:${C.accent};box-shadow:0 0 0 3px ${C.accentTint}}
-.nv-label{font-size:12.5px;color:${C.sub};margin:0 0 6px;display:block}
-.nv-btn{background:${C.accent};color:#fff;border:none;border-radius:9px;padding:13px 16px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .14s,transform .05s;letter-spacing:-.01em}
-.nv-btn:hover:not(:disabled){opacity:.92}.nv-btn:active:not(:disabled){transform:translateY(1px)}.nv-btn:disabled{opacity:.4;cursor:default}
-.nv-card{background:${C.card};border:1px solid ${C.line};border-radius:14px;padding:20px 22px;margin-bottom:14px;box-shadow:0 1px 2px rgba(20,23,28,.03)}
-.nv-chip{display:inline-block;background:${C.card};border:1px solid ${C.line};border-radius:8px;padding:7px 12px;font-size:13px;margin:0 7px 7px 0;color:${C.sub};transition:all .12s}
+.nv-label{font-size:13px;color:${C.ink};font-weight:600;margin:0 0 7px;display:block}
+.nv-btn{background:${C.accent};color:#fff;border:none;border-radius:10px;padding:13px 16px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:box-shadow .14s,transform .05s;letter-spacing:-.01em}
+.nv-btn:hover:not(:disabled){box-shadow:0 6px 20px rgba(75,67,214,.32)}.nv-btn:active:not(:disabled){transform:translateY(1px)}.nv-btn:disabled{opacity:.45;cursor:default}
+.nv-card{background:${C.card};border:1px solid ${C.line};border-radius:14px;padding:20px 22px;margin-bottom:14px;box-shadow:0 1px 2px rgba(20,23,28,.04),0 8px 24px -18px rgba(20,23,28,.18)}
+.nv-chip{display:inline-block;background:${C.card};border:1.5px solid ${C.line};border-radius:9px;padding:8px 13px;font-size:13px;margin:0 7px 7px 0;color:${C.sub};font-weight:500;transition:all .12s}
 .nv-pick{cursor:pointer;user-select:none}
 .nv-pick.on{background:${C.accentTint};color:${C.accentInk};border-color:${C.accent}}
-.nv-eyebrow{font-size:11px;letter-spacing:.16em;color:${C.faint};font-weight:500;text-transform:uppercase}
+.nv-eyebrow{font-size:11px;letter-spacing:.16em;color:${C.faint};font-weight:600;text-transform:uppercase}
 `;
