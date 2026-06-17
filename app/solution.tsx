@@ -233,28 +233,6 @@ type Idea = {
   thumbnail?: { concept?: string; text?: string };
   refPoints?: string[];
 };
-type Plan = {
-  working?: { point: string; ref?: string }[];
-  demand?: { want: string; quote?: string }[];
-  ideas?: Idea[];
-};
-type Radar = {
-  cohort?: {
-    name: string;
-    thumb?: string;
-    subs: number;
-    recent60: number;
-    avgViews: number;
-    shortsPct: number;
-    url?: string;
-    top?: { title: string; views: number; url?: string } | null;
-  }[];
-  mine?: { name: string; subs: number; avgViews: number; shortsPct: number };
-  landscape?: string;
-  position?: string;
-  diagnosis?: { point: string; evidence: string }[];
-  inspirations?: { from: string; insight: string; apply: string; ref?: string }[];
-};
 // 통합 브리핑 — 하나의 결과로 모든 패널을 그린다
 type CohortCard = {
   name: string;
@@ -270,7 +248,7 @@ type CohortCard = {
 };
 type Brief = {
   cohort?: CohortCard[];
-  mine?: Radar["mine"];
+  mine?: { name: string; subs: number; avgViews: number; shortsPct: number };
   landscape?: string;
   position?: string;
   diagnosis?: { point: string; evidence: string }[];
