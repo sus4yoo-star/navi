@@ -547,7 +547,7 @@ export default function Solution({
                 <Wing size={15} />
                 <span className="nv-mono">영감 레이더 · 바깥에서 배운다</span>
               </div>
-              <h2 className="nv-hero-title">이 채널에서 영감을 훔쳐오세요</h2>
+              <h2 className="nv-hero-title">여기서 영감을 얻어오세요</h2>
             </div>
             {channel && (brief || briefErr) && (
               <button
