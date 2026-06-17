@@ -256,13 +256,24 @@ type Radar = {
   inspirations?: { from: string; insight: string; apply: string; ref?: string }[];
 };
 // 통합 브리핑 — 하나의 결과로 모든 패널을 그린다
+type CohortCard = {
+  name: string;
+  thumb?: string;
+  subs: number;
+  recent60: number;
+  avgViews: number;
+  shortsPct: number;
+  url?: string;
+  top?: { title: string; views: number; url?: string } | null;
+  analysis?: string;
+  apply?: string;
+};
 type Brief = {
-  cohort?: Radar["cohort"];
+  cohort?: CohortCard[];
   mine?: Radar["mine"];
   landscape?: string;
   position?: string;
   diagnosis?: { point: string; evidence: string }[];
-  inspirations?: { from: string; insight: string; apply: string }[];
   ideas?: Idea[];
   strategy?: { point: string; why: string }[];
   todo?: string[];
@@ -541,31 +552,33 @@ export default function Solution({
           )}
 
           {!!brief?.cohort?.length && (
-            <div className="nv-rt">
-              <div className="nv-rt-row nv-rt-head">
-                <span>채널 · 대표 영상</span>
-                <span>구독자</span>
-                <span>평균조회</span>
-                <span>최근60일</span>
+            <>
+              <div className="nv-co-meta">
+                {brief.mine && (
+                  <span className="nv-mono">
+                    내 채널 · 구독 {brief.mine.subs.toLocaleString()} · 평균조회{" "}
+                    {brief.mine.avgViews.toLocaleString()}
+                  </span>
+                )}
+                <span className="nv-co-swipe">← 옆으로 넘겨보세요</span>
               </div>
-              {brief.mine && (
-                <div className="nv-rt-row nv-rt-mine">
-                  <span className="nv-rt-name">내 채널</span>
-                  <span className="nv-mono">{brief.mine.subs.toLocaleString()}</span>
-                  <span className="nv-mono">{brief.mine.avgViews.toLocaleString()}</span>
-                  <span className="nv-mono">—</span>
-                </div>
-              )}
-              {brief.cohort.map((c, i) => (
-                <div className="nv-rt-row" key={i}>
-                  <span className="nv-rt-name">
-                    {c.url ? (
-                      <a href={c.url} target="_blank" rel="noopener noreferrer" title={c.name}>
-                        {c.name}
-                      </a>
-                    ) : (
-                      c.name
-                    )}
+              <div className="nv-coscroll">
+                {brief.cohort.map((c, i) => (
+                  <div className="nv-cocard" key={i}>
+                    <div className="nv-cocard-head">
+                      {c.thumb && <img className="nv-cocard-thumb" src={c.thumb} alt="" loading="lazy" />}
+                      {c.url ? (
+                        <a href={c.url} target="_blank" rel="noopener noreferrer" className="nv-cocard-name">
+                          {c.name} ↗
+                        </a>
+                      ) : (
+                        <span className="nv-cocard-name">{c.name}</span>
+                      )}
+                    </div>
+                    <div className="nv-mono nv-cocard-stats">
+                      구독 {c.subs.toLocaleString()} · 평균조회 {c.avgViews.toLocaleString()} · 최근60일{" "}
+                      {c.recent60}편
+                    </div>
                     {c.top &&
                       (c.top.url ? (
                         <a className="nv-rt-top" href={c.top.url} target="_blank" rel="noopener noreferrer">
@@ -574,33 +587,17 @@ export default function Solution({
                       ) : (
                         <span className="nv-rt-top">{c.top.title}</span>
                       ))}
-                  </span>
-                  <span className="nv-mono">{c.subs.toLocaleString()}</span>
-                  <span className="nv-mono">{c.avgViews.toLocaleString()}</span>
-                  <span className="nv-mono">{c.recent60}편</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {brief?.inspirations?.map((ins, i) => {
-            const url = brief.cohort?.find((c) => c.name === ins.from)?.url;
-            return (
-              <div key={i} className="nv-insp">
-                <div className="nv-cue-row">
-                  {url ? (
-                    <a className="nv-src" href={url} target="_blank" rel="noopener noreferrer">
-                      {ins.from} ↗
-                    </a>
-                  ) : (
-                    <span className="nv-src">{ins.from}</span>
-                  )}
-                </div>
-                <p className="nv-strat-pt">{ins.insight}</p>
-                <div className="nv-firsthook" style={{ marginTop: 6 }}>내 채널엔 · {ins.apply}</div>
+                    {c.analysis && (
+                      <p className="nv-reason" style={{ margin: "10px 0 0" }}>{c.analysis}</p>
+                    )}
+                    {c.apply && (
+                      <div className="nv-firsthook" style={{ marginTop: 8 }}>내 채널엔 · {c.apply}</div>
+                    )}
+                  </div>
+                ))}
               </div>
-            );
-          })}
+            </>
+          )}
         </div>
       )}
 
@@ -1260,23 +1257,19 @@ const css = `
 .nv-hero-title{font-size:21px;font-weight:800;letter-spacing:-.02em;color:${C.ink};margin:7px 0 0;line-height:1.2}
 .nv-radar{background:linear-gradient(180deg,#EFFBF5 0%,#fff 120px);border:1px solid #C8E9D7;box-shadow:0 10px 30px -18px rgba(31,158,107,.4)}
 .nv-radar .nv-hero-eyebrow{color:${C.live}}
-.nv-rt{margin-top:14px;border:1px solid ${C.line};border-radius:11px;overflow:hidden}
-.nv-rt-row{display:grid;grid-template-columns:1.5fr .9fr .9fr .75fr;align-items:center;gap:6px;padding:10px 12px;border-top:1px solid ${C.line};font-size:13px}
-.nv-rt-row:first-child{border-top:0}
-.nv-rt-row span:not(.nv-rt-name){text-align:right;color:${C.ink};font-size:12.5px}
-.nv-rt-head{background:#FAFAFC;font-size:11px;color:${C.faint};letter-spacing:.04em;font-weight:700}
-.nv-rt-head span{color:${C.faint} !important}
-.nv-rt-name{min-width:0;display:flex;flex-direction:column;gap:2px;font-weight:600;color:${C.ink}}
-.nv-rt-name>a,.nv-rt-name>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nv-rt-name a{color:${C.ink};text-decoration:none;border-bottom:1px solid ${C.line}}
-.nv-rt-name a:hover{color:${C.accent};border-color:${C.accent}}
-.nv-rt-top{font-size:11px;font-weight:500;color:${C.live} !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0 !important;text-decoration:none}
-.nv-rt-top:hover{text-decoration:underline}
 a.nv-src{text-decoration:none}
-.nv-rt-mine{background:${C.accentTint}}
-.nv-rt-mine .nv-rt-name{color:${C.accentInk}}
-.nv-insp{border:1px solid ${C.line};border-left:3px solid ${C.live};border-radius:11px;padding:14px 16px;margin-top:12px;background:#fff;box-shadow:0 1px 2px rgba(20,23,28,.04)}
-.nv-insp .nv-src{color:${C.live};border-color:${C.live}}
+.nv-co-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;font-size:11.5px;color:${C.sub}}
+.nv-co-swipe{color:${C.live};font-weight:600;white-space:nowrap;font-size:11px}
+.nv-coscroll{display:flex;gap:12px;overflow-x:auto;margin:9px -22px 0;padding:2px 22px 10px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.nv-coscroll::-webkit-scrollbar{height:0}
+.nv-cocard{flex:0 0 84%;max-width:300px;scroll-snap-align:start;border:1px solid ${C.line};border-top:3px solid ${C.live};border-radius:13px;padding:15px 16px;background:#fff;box-shadow:0 2px 10px -4px rgba(20,23,28,.12)}
+.nv-cocard-head{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.nv-cocard-thumb{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none;background:${C.canvas}}
+.nv-cocard-name{font-size:15px;font-weight:700;color:${C.ink};text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nv-cocard-name:hover{color:${C.accent}}
+.nv-cocard-stats{font-size:11.5px;color:${C.sub};margin-bottom:7px}
+.nv-rt-top{display:block;font-size:11.5px;font-weight:500;color:${C.live};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}
+.nv-rt-top:hover{text-decoration:underline}
 .nv-tag{display:inline-block;background:${C.canvas};border:1px solid ${C.line};border-radius:7px;padding:5px 10px;font-size:12.5px;margin:0 6px 6px 0;color:${C.sub}}
 .nv-badge{display:inline-block;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:6px;margin-right:8px;vertical-align:middle}
 .nv-badge.s{background:#EAF7F0;color:#1F9E6B;border:1px solid #BFE9D5}
