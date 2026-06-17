@@ -29,18 +29,27 @@ async function getJSON(url: string) {
   return (await fetch(url)).json();
 }
 
-// 같은 분야에서 최근 '잘 된 영상' — 작가의 사전조사 재료
-async function nicheHits(query: string, excludeName: string) {
-  const monthsAgo = new Date(Date.now() - 150 * 86400e3).toISOString();
+const norm = (s: string) => (s || "").replace(/\s/g, "").toLowerCase();
+
+// 제목에서 해시태그·기호·채널명을 떼어 검색용 '주제 키워드'로
+function topicQuery(title: string, name: string) {
+  let q = (title || "").replace(/#\S+/g, " ").replace(/[\[\]()|·…!?,.~"'\-—:/]/g, " ");
+  if (name) q = q.replace(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), " ");
+  return q.replace(/\s+/g, " ").trim();
+}
+
+// 주제로 검색해 '다른 활성 채널'의 잘 된 영상을 모은다(자기 채널 제외, 댓글 수 포함)
+async function searchHits(query: string, excludeName: string) {
+  const after = new Date(Date.now() - 180 * 86400e3).toISOString();
   const sr = await getJSON(
-    `${API}/search?part=snippet&type=video&order=viewCount&maxResults=20&relevanceLanguage=ko&regionCode=KR&publishedAfter=${monthsAgo}&q=${encodeURIComponent(
+    `${API}/search?part=snippet&type=video&order=viewCount&maxResults=25&relevanceLanguage=ko&regionCode=KR&publishedAfter=${after}&q=${encodeURIComponent(
       query
     )}&key=${YT}`
   );
-  const ids = (sr.items || []).map((i: any) => i.id?.videoId).filter(Boolean).slice(0, 20).join(",");
+  const ids = (sr.items || []).map((i: any) => i.id?.videoId).filter(Boolean).slice(0, 25).join(",");
   if (!ids) return [];
   const vj = await getJSON(`${API}/videos?part=snippet,statistics,contentDetails&id=${ids}&key=${YT}`);
-  const me = (excludeName || "").replace(/\s/g, "").toLowerCase();
+  const me = norm(excludeName);
   return (vj.items || [])
     .map((x: any) => {
       const sec = isoToSec(x.contentDetails?.duration || "");
@@ -49,12 +58,11 @@ async function nicheHits(query: string, excludeName: string) {
         title: x.snippet.title as string,
         channel: x.snippet.channelTitle as string,
         views: Number(x.statistics?.viewCount ?? 0),
+        comments: Number(x.statistics?.commentCount ?? 0),
         format: (sec > 0 && sec <= 60) || /#shorts/i.test(x.snippet.title) ? "쇼츠" : "롱폼",
       };
     })
-    .filter((v: any) => v.channel.replace(/\s/g, "").toLowerCase() !== me)
-    .sort((a: any, b: any) => b.views - a.views)
-    .slice(0, 10);
+    .filter((v: any) => norm(v.channel) !== me);
 }
 
 // 잘 된 영상의 인기 댓글 — 시청자 반응(수요)의 실제 근거
@@ -76,7 +84,8 @@ const SYSTEM = `당신은 '나비', 한국 1인 유튜브 크리에이터를 돕
 사후 비평이 아니라, 이번 주에 '무엇을 만들지'를 기획합니다.
 근거는 오직 [같은 분야에서 잘 된 영상]과 [그 영상들의 시청자 댓글], 그리고 [내 채널 색깔]뿐입니다. 데이터에 없는 사실·수치는 지어내지 마세요.
 
-작가처럼: 잘 된 영상과 댓글에서 '지금 이 분야에서 먹히는 것'과 '시청자가 반복해서 원하는 것'을 귀납하세요.
+작가처럼: 다른 활성 채널의 잘 된 영상과 그 댓글에서 '지금 이 분야에서 먹히는 것'과 '시청자가 반복해서 원하는 것'을 귀납하세요.
+demand의 quote는 반드시 제공된 실제 댓글 원문이어야 합니다. 댓글이 없으면 demand는 빈 배열([])로 두세요 — 추측으로 채우거나 '댓글 데이터 없음' 같은 문구를 quote에 넣지 마세요.
 PD처럼: 그것을 내 채널 색깔에 맞춰 '이렇게 만들어라'(제목·첫3초 훅·형식·썸네일)로 구체화하세요. 남의 걸 베끼는 게 아니라 내 채널 버전으로.
 크리에이터는 참고 영상을 다 볼 수 없으니, 각 기획안마다 '참고한 잘된 영상들의 핵심(refPoints)'을 글로 짚어 주세요 — 영상을 안 봐도 따라할 수 있게 요점만.
 썸네일도 예시로 구성(concept)과 화면 문구(text)를 제안하세요.
@@ -110,14 +119,42 @@ export default async (req: Request) => {
 
     const myName = channel?.name ?? "";
     const list = (videos || []) as { title: string; views: number; format: string }[];
-    // 검색어: 분야 > 내 잘된 영상 제목 > 채널명
-    const topTitle = [...list].sort((a, b) => b.views - a.views)[0]?.title;
-    const query = niche || topTitle || myName;
+    const topByViews = [...list].sort((a, b) => b.views - a.views);
 
-    const hits = query ? await nicheHits(query, myName) : [];
-    // 잘 된 영상 상위 5개의 댓글을 모은다(시청자 반응)
+    // 검색어는 '채널명'이 아니라 '실제 콘텐츠 주제'로 — 다른 활성 채널을 찾기 위함.
+    const queries: string[] = [];
+    if (niche && norm(niche) !== norm(myName)) queries.push(niche);
+    for (const v of topByViews.slice(0, 4)) {
+      const q = topicQuery(v.title, myName);
+      if (q.length >= 4) queries.push(q);
+    }
+    const seenQ = new Set<string>();
+    const uniqQ = queries.filter((q) => {
+      const k = norm(q);
+      if (!k || seenQ.has(k)) return false;
+      seenQ.add(k);
+      return true;
+    });
+
+    // 여러 주제로 검색해 다른 채널 영상을 모은다(중복 제거)
+    const hitsMap = new Map<string, any>();
+    for (const q of uniqQ) {
+      if (hitsMap.size >= 15) break;
+      try {
+        for (const h of await searchHits(q, myName)) if (!hitsMap.has(h.id)) hitsMap.set(h.id, h);
+      } catch (e: any) {
+        console.error("search 실패:", q, e?.message);
+      }
+    }
+    const hits = [...hitsMap.values()].sort((a, b) => b.views - a.views).slice(0, 12);
+
+    // 댓글 많은 영상 우선으로 시청자 반응을 수집(다른 채널의 진짜 수요)
+    const commentTargets = [...hits]
+      .filter((h) => h.comments > 0)
+      .sort((a, b) => b.comments - a.comments)
+      .slice(0, 6);
     const commentBlocks: string[] = [];
-    for (const v of hits.slice(0, 5)) {
+    for (const v of commentTargets) {
       const cs = await videoComments(v.id);
       if (cs.length)
         commentBlocks.push(
