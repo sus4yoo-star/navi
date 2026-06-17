@@ -205,10 +205,19 @@ type Short = {
   reason: string;
   score?: number; // 정렬용 상대 우선순위(겉으로 표시 안 함)
 };
+type Idea = {
+  title: string;
+  format: string;
+  hook?: string;
+  why?: string;
+  source?: string;
+  thumbnail?: { concept?: string; text?: string };
+  refPoints?: string[];
+};
 type Plan = {
   working?: { point: string; ref?: string }[];
   demand?: { want: string; quote?: string }[];
-  ideas?: { title: string; format: string; hook?: string; why?: string; source?: string }[];
+  ideas?: Idea[];
 };
 type Analysis = {
   summary?: string; // 영상 전체 핵심 요약
@@ -507,10 +516,60 @@ export default function Solution({
               <p className="nv-hook" style={{ fontSize: 16, marginTop: 6 }}>{idea.title}</p>
               {idea.hook && <div className="nv-firsthook" style={{ marginTop: 6 }}>첫 3초 · {idea.hook}</div>}
               {idea.why && <p className="nv-reason" style={{ margin: "8px 0 0" }}>{idea.why}</p>}
+
+              {!!idea.refPoints?.length && (
+                <div className="nv-refpoints">
+                  <p className="nv-rp-h">참고 핵심 — 이것만 따라하면 돼요</p>
+                  {idea.refPoints.map((p, k) => (
+                    <div key={k} className="nv-fb nv-fb-good" style={{ fontSize: 13 }}>
+                      <span className="nv-fb-mark">＋</span>
+                      {p}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {idea.thumbnail && (idea.thumbnail.concept || idea.thumbnail.text) && (
+                <div className="nv-thumbsug">
+                  <p className="nv-rp-h">썸네일 예시</p>
+                  {idea.thumbnail.concept && (
+                    <p className="nv-reason" style={{ margin: 0 }}>{idea.thumbnail.concept}</p>
+                  )}
+                  {idea.thumbnail.text && (
+                    <div className="nv-mono nv-copy-line" style={{ marginTop: 4 }}>
+                      문구: {idea.thumbnail.text}
+                    </div>
+                  )}
+                  {idea.thumbnail.text && (
+                    <button
+                      className="nv-detbtn"
+                      style={{ marginTop: 9 }}
+                      onClick={() =>
+                        downloadTextCard(idea.thumbnail!.text!, {
+                          label: "썸네일 예시",
+                          ratio: "16:9",
+                          filename: "navi-썸네일",
+                        })
+                      }
+                    >
+                      썸네일 이미지 저장
+                    </button>
+                  )}
+                </div>
+              )}
+
               <div className="nv-short-foot">
                 <span />
                 <Copy
-                  text={`${idea.title}\n첫 3초: ${idea.hook || ""}\n왜: ${idea.why || ""}`}
+                  text={[
+                    idea.title,
+                    `첫 3초: ${idea.hook || ""}`,
+                    `왜: ${idea.why || ""}`,
+                    idea.refPoints?.length ? `참고 핵심:\n- ${idea.refPoints.join("\n- ")}` : "",
+                    idea.thumbnail?.text ? `썸네일 문구: ${idea.thumbnail.text}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join("\n")}
                   label="복사"
                 />
               </div>
@@ -1095,6 +1154,9 @@ const css = `
 .nv-demand{padding:9px 0;border-top:1px solid ${C.line}}
 .nv-demand:first-child{border-top:0}
 .nv-evi-q{font-size:12.5px;color:${C.sub};margin:4px 0 0;padding-left:10px;border-left:2px solid ${C.line};line-height:1.55}
+.nv-refpoints{margin-top:11px;padding-top:11px;border-top:1px dashed ${C.line}}
+.nv-thumbsug{margin-top:11px;padding-top:11px;border-top:1px dashed ${C.line}}
+.nv-rp-h{font-size:11px;color:${C.faint};letter-spacing:.08em;font-weight:700;margin:0 0 7px;text-transform:uppercase}
 .nv-read{font-size:14.5px;color:${C.ink};line-height:1.65;margin:11px 0 0}
 .nv-evi{font-size:12px;color:${C.live};line-height:1.5;margin-top:3px}
 .nv-strat-pt{font-size:14.5px;font-weight:700;margin-bottom:3px;color:${C.ink}}
