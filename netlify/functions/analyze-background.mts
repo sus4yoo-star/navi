@@ -122,7 +122,7 @@ function buildPrompt(format: string) {
 
 [타임코드 규칙] 쇼츠 구간(cue)은 실제로 그 말/장면이 나오는 시점만 "M:SS-M:SS" 형식으로 정확히. 추측·반올림 금지.
 [대사(transcript)] 그 구간에서 실제로 들리는 말을 요약하지 말고 그대로 옮기세요.
-[선별] 아무 구간이나 5~6개 채우지 말고, 실제로 훅이 세고·감정이 크고·그 부분만 떼도 독립적으로 완결되는 '쇼츠감'만 고르세요. 약한 구간은 빼도 됩니다(3개여도 됨). 순위·점수는 매기지 말고, 각 구간을 고른 이유(reason)를 구체적으로 쓰세요.
+[선별] 서로 겹치지 않는 '서로 다른' 구간만 최대 5개. 같은 문장·같은 장면·겹치는 시간대를 반복하지 마세요. 실제로 훅이 세고 독립적으로 완결되는 '쇼츠감'만 고르고, 약하면 3개여도 됩니다. 순위·점수는 매기지 말고, 각 구간을 고른 이유(reason)를 구체적으로.
 [바로 올릴 패키지] 각 쇼츠마다 화면자막(onscreen)·캡션(caption)·해시태그(hashtags)·제목(title)을 채워, 편집만 하면 바로 올릴 수 있게.
 
 먼저 영상 전체를 3~5줄로 요약(summary)하세요. 그다음 잘한 점(good)·개선점(improve).
@@ -219,6 +219,45 @@ async function rankShorts(shorts: any[]) {
   }
 }
 
+// 겹치거나 똑같은 쇼츠 후보를 제거한다(같은 훅 문장 / 시간 구간 50% 이상 겹침).
+function dedupeShorts(shorts: any[]) {
+  const toSec = (t: string) => {
+    const a = t.trim().split(":").map(Number);
+    return a.some(isNaN) ? NaN : a.reduce((x, n) => x * 60 + n, 0);
+  };
+  const range = (cue?: string): [number, number] | null => {
+    if (!cue) return null;
+    const p = cue.split("-");
+    const s = toSec(p[0] || "");
+    const e = p[1] ? toSec(p[1]) : s;
+    return isNaN(s) ? null : [s, isNaN(e) ? s : e];
+  };
+  const out: any[] = [];
+  for (const s of shorts) {
+    const norm = (s.hook || "").replace(/\s/g, "");
+    const r = range(s.cue);
+    const dup = out.some((o) => {
+      if (norm && o._norm === norm) return true;
+      if (r && o._r) {
+        const ov = Math.min(r[1], o._r[1]) - Math.max(r[0], o._r[0]);
+        const len = Math.max(Math.min(r[1] - r[0], o._r[1] - o._r[0]), 1);
+        if (ov > 0 && ov / len > 0.5) return true;
+      }
+      return false;
+    });
+    if (!dup) {
+      s._norm = norm;
+      s._r = r;
+      out.push(s);
+    }
+  }
+  out.forEach((o) => {
+    delete o._norm;
+    delete o._r;
+  });
+  return out;
+}
+
 export default async (req: Request) => {
   let id: string | undefined;
   try {
@@ -245,8 +284,10 @@ export default async (req: Request) => {
     const analysis = await analyzeVideo(videoUrl, statsCtx, fmt);
     if (fmt === "쇼츠" && analysis) {
       analysis.shorts = [];
-    } else if (analysis?.shorts?.length > 1) {
-      analysis.shorts = await rankShorts(analysis.shorts); // 센 것부터 위로
+    } else if (analysis?.shorts?.length) {
+      analysis.shorts = dedupeShorts(analysis.shorts).slice(0, 6); // 중복 제거
+      if (analysis.shorts.length > 1) analysis.shorts = await rankShorts(analysis.shorts);
+      analysis.shorts = analysis.shorts.slice(0, 5); // 최대 5개
     }
     await sb
       .from("analyses")

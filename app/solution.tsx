@@ -349,8 +349,8 @@ export default function Solution({
     }
   }
 
-  async function deepDive(v: Video) {
-    if (deepId === v.id) {
+  async function deepDive(v: Video, force = false) {
+    if (deepId === v.id && !force) {
       setDeepId(null);
       setDeep(null);
       return;
@@ -360,9 +360,10 @@ export default function Solution({
     setDeepErr("");
     const videoUrl = `https://www.youtube.com/watch?v=${v.id}`;
     const dkey = `navi_deep_${v.id}`;
+    if (force) delCache(dkey); // '다시 분석' — 캐시 무시하고 새로
 
     // 이미 분석해 둔 영상이면 즉시 표시(닫았다 돌아와도 그대로)
-    if (v.format !== "쇼츠") {
+    if (!force && v.format !== "쇼츠") {
       const done = loadCache(dkey);
       if (done?.status === "done" && done.data) {
         setDeep(done.data);
@@ -379,7 +380,7 @@ export default function Solution({
       } else {
         // 롱폼은 길어서 백그라운드로 돌리고 결과를 폴링(타임아웃 방어).
         // 진행 중 작업이 있으면 새로 시작하지 않고 이어받는다.
-        const cached = loadCache(dkey);
+        const cached = force ? null : loadCache(dkey);
         let id = cached?.status === "pending" ? cached.id : undefined;
         if (!id) {
           const r = await callJson("/api/analyze/start", {
@@ -513,6 +514,13 @@ export default function Solution({
                     </div>
                   )}
                   {deepErr && <p className="nv-err">{deepErr}</p>}
+                  {deep && !deepLoading && (
+                    <div style={{ textAlign: "right", marginBottom: 4 }}>
+                      <button className="nv-detbtn" onClick={() => deepDive(v, true)}>
+                        다시 분석
+                      </button>
+                    </div>
+                  )}
                   {deep && <Deep a={deep} />}
                 </div>
               )}
