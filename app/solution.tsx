@@ -48,13 +48,13 @@ type Sol = {
   this_week?: string[];
 };
 type Analysis = {
-  shorts?: { cue?: string; hook: string; reason: string; title: string }[];
+  good?: string[];
+  improve?: string[];
   titles?: string[];
-  thumbnails?: { concept: string; text: string }[];
-  description?: string;
+  thumbnail?: { concept: string; text: string };
   tags?: string[];
-  strategy?: { point: string; why: string }[];
-  next_actions?: string[];
+  shorts?: { cue?: string; hook: string; reason: string; title: string }[];
+  next_ideas?: string[];
 };
 
 export default function Solution({
@@ -138,6 +138,7 @@ export default function Solution({
       const j = await callJson("/api/analyze", {
         videoUrl: `https://www.youtube.com/watch?v=${v.id}`,
         channelUrl,
+        format: v.format,
       });
       setDeep(j.analysis || null);
     } catch (e: any) {
@@ -307,24 +308,51 @@ export default function Solution({
 function Deep({ a }: { a: Analysis }) {
   return (
     <div style={{ marginTop: 6 }}>
-      {(a.shorts || []).map((s, i) => (
-        <div key={i} className="nv-deep-block">
-          <div className="nv-cue-row">
-            <span className="nv-mono nv-cue">{s.cue || "CUE " + (i + 1)}</span>
-            <Copy text={s.hook} />
-          </div>
-          <p className="nv-hook" style={{ fontSize: 16 }}>
-            &ldquo;{s.hook}&rdquo;
-          </p>
-          <p className="nv-reason">{s.reason}</p>
-          <div className="nv-shorts-title">
-            <b>쇼츠 제목</b> · {s.title}
-          </div>
+      {a.good && a.good.length > 0 && (
+        <div className="nv-deep-block">
+          <p className="nv-h">잘한 점</p>
+          {a.good.map((t, i) => (
+            <div key={i} className="nv-fb nv-fb-good">
+              <span className="nv-fb-mark">＋</span>
+              {t}
+            </div>
+          ))}
         </div>
-      ))}
+      )}
+      {a.improve && a.improve.length > 0 && (
+        <div className="nv-deep-block">
+          <p className="nv-h">개선점</p>
+          {a.improve.map((t, i) => (
+            <div key={i} className="nv-fb nv-fb-improve">
+              <span className="nv-fb-mark">→</span>
+              {t}
+            </div>
+          ))}
+        </div>
+      )}
+      {a.shorts && a.shorts.length > 0 && (
+        <div className="nv-deep-block">
+          <p className="nv-h">여기서 쇼츠로 뽑으면 좋아요</p>
+          {a.shorts.map((s, i) => (
+            <div key={i} style={{ padding: "8px 0" }}>
+              <div className="nv-cue-row">
+                <span className="nv-mono nv-cue">{s.cue || "CUE " + (i + 1)}</span>
+                <Copy text={s.hook} />
+              </div>
+              <p className="nv-hook" style={{ fontSize: 16 }}>
+                &ldquo;{s.hook}&rdquo;
+              </p>
+              <p className="nv-reason">{s.reason}</p>
+              <div className="nv-shorts-title">
+                <b>쇼츠 제목</b> · {s.title}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       {a.titles && a.titles.length > 0 && (
         <div className="nv-deep-block">
-          <p className="nv-h">제목 후보</p>
+          <p className="nv-h">더 끌리는 제목</p>
           {a.titles.map((t, i) => (
             <div key={i} className="nv-row-flex" style={{ padding: "6px 0" }}>
               <span style={{ fontSize: 14 }}>{t}</span>
@@ -333,26 +361,13 @@ function Deep({ a }: { a: Analysis }) {
           ))}
         </div>
       )}
-      {a.thumbnails && a.thumbnails.length > 0 && (
+      {a.thumbnail && (
         <div className="nv-deep-block">
-          <p className="nv-h">썸네일 컨셉</p>
-          {a.thumbnails.map((t, i) => (
-            <div key={i} style={{ padding: "6px 0" }}>
-              <div style={{ fontSize: 14 }}>{t.concept}</div>
-              <div className="nv-mono nv-copy-line">카피: {t.text}</div>
-            </div>
-          ))}
-        </div>
-      )}
-      {a.description && (
-        <div className="nv-deep-block">
-          <div className="nv-cue-row">
-            <p className="nv-h" style={{ margin: 0 }}>
-              설명란 초안
-            </p>
-            <Copy text={a.description} />
-          </div>
-          <p className="nv-desc">{a.description}</p>
+          <p className="nv-h">썸네일 제안</p>
+          <div style={{ fontSize: 14 }}>{a.thumbnail.concept}</div>
+          {a.thumbnail.text && (
+            <div className="nv-mono nv-copy-line">카피: {a.thumbnail.text}</div>
+          )}
         </div>
       )}
       {a.tags && a.tags.length > 0 && (
@@ -372,23 +387,12 @@ function Deep({ a }: { a: Analysis }) {
           </div>
         </div>
       )}
-      {a.strategy && a.strategy.length > 0 && (
+      {a.next_ideas && a.next_ideas.length > 0 && (
         <div className="nv-deep-block">
-          <p className="nv-h">이 영상 기반 전략</p>
-          {a.strategy.map((s, i) => (
-            <div key={i} style={{ padding: "6px 0" }}>
-              <div className="nv-strat-pt">{s.point}</div>
-              <div className="nv-strat-why">{s.why}</div>
-            </div>
-          ))}
-        </div>
-      )}
-      {a.next_actions && a.next_actions.length > 0 && (
-        <div className="nv-deep-block">
-          <p className="nv-h">바로 할 일</p>
-          {a.next_actions.map((t, i) => (
+          <p className="nv-h">다음 영상 아이디어</p>
+          {a.next_ideas.map((t, i) => (
             <div key={i} className="nv-todo" style={{ padding: "6px 0" }}>
-              <span className="nv-todo-box">□</span>
+              <span className="nv-todo-box">·</span>
               {t}
             </div>
           ))}
@@ -466,5 +470,9 @@ const css = `
 .nv-strat-why{font-size:13px;color:${C.sub};line-height:1.6}
 .nv-todo{display:flex;gap:10px;font-size:14px;color:${C.ink}}
 .nv-todo-box{color:${C.accent};font-weight:700}
+.nv-fb{display:flex;gap:9px;font-size:14px;line-height:1.6;color:${C.ink};padding:7px 0}
+.nv-fb-mark{flex:none;font-weight:700;font-family:ui-monospace,Menlo,monospace}
+.nv-fb-good .nv-fb-mark{color:${C.live}}
+.nv-fb-improve .nv-fb-mark{color:${C.accent}}
 .nv-err{color:${C.accent};font-size:13px;margin:0;font-weight:500}
 `;

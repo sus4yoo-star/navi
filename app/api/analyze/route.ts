@@ -73,11 +73,18 @@ async function getChannelStats(channelUrl: string) {
   };
 }
 
-const PROMPT = `당신은 '나비', 한국 1인 유튜브 크리에이터를 돕는 베테랑 PD입니다.
-이 영상을 음성과 화면을 모두 보고, 실제 내용에 근거해 쇼츠 컷과 패키징·전략을 제안하세요.
-보이지/들리지 않은 것을 지어내지 마세요. 클리셰·과장·이모지 금지.
+function buildPrompt(format: string) {
+  const isShort = format === "쇼츠";
+  const shortsRule = isShort
+    ? `이 영상은 이미 '쇼츠'입니다. 쇼츠로 자르라는 제안은 하지 말고 "shorts"는 빈 배열([])로 두세요.`
+    : `이 영상은 '롱폼'입니다. "shorts"에 이 영상에서 쇼츠로 뽑으면 좋을 구간 2~3개를 타임코드(예 "1:20-1:35")와 함께 제안하세요.`;
+  return `당신은 '나비', 한국 1인 유튜브 크리에이터를 돕는 베테랑 PD입니다.
+이 영상을 음성과 화면을 모두 보고, 실제 내용에 근거해 피드백하세요. 보이지/들리지 않은 것을 지어내지 마세요. 클리셰·과장·이모지 금지.
+먼저 '잘한 점(good)'을 구체적으로 칭찬하고, 그다음 '개선점(improve)'을 실행 가능하게 제안하세요.
+${shortsRule}
 아래 키를 가진 JSON 하나만 출력. 그 외 텍스트·코드펜스 금지.
-{"shorts":[{"cue":"CUE 01","hook":"실제 장면 기반 훅","reason":"왜 이 구간","title":"쇼츠 제목"}],"titles":["제목 후보"],"thumbnails":[{"concept":"썸네일 구성","text":"썸네일 카피"}],"description":"설명란 초안","tags":["태그"],"strategy":[{"point":"전략","why":"이유"}],"next_actions":["바로 할 일"]}`;
+{"good":["이 영상이 잘한 점 — 실제 장면/말 근거"],"improve":["개선점 — 구체적이고 실행 가능하게"],"titles":["더 끌리는 제목 후보"],"thumbnail":{"concept":"썸네일 구성","text":"썸네일 카피"},"tags":["태그"],"shorts":[{"cue":"1:20-1:35","hook":"실제 장면 기반 훅","reason":"왜 이 구간","title":"쇼츠 제목"}],"next_ideas":["다음에 만들면 좋을 영상"]}`;
+}
 
 function extractJson(text: string) {
   const t = text.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -91,8 +98,11 @@ function extractJson(text: string) {
   }
 }
 
-async function analyzeVideo(videoUrl: string, statsCtx: string) {
+async function analyzeVideo(videoUrl: string, statsCtx: string, format: string) {
   if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY가 설정되지 않았어요.");
+  // 롱폼은 프레임 샘플링을 낮춰 처리 시간을 줄임(타임아웃 방어)
+  const videoPart: any = { file_data: { file_uri: videoUrl } };
+  if (format !== "쇼츠") videoPart.video_metadata = { fps: 0.5 };
   const r = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`,
     {
@@ -102,8 +112,8 @@ async function analyzeVideo(videoUrl: string, statsCtx: string) {
         contents: [
           {
             parts: [
-              { file_data: { file_uri: videoUrl } },
-              { text: `${PROMPT}\n\n[채널/영상 통계]\n${statsCtx || "(없음)"}` },
+              videoPart,
+              { text: `${buildPrompt(format)}\n\n[채널/영상 통계]\n${statsCtx || "(없음)"}` },
             ],
           },
         ],
@@ -127,7 +137,7 @@ async function analyzeVideo(videoUrl: string, statsCtx: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const { videoUrl, channelUrl } = await req.json();
+  const { videoUrl, channelUrl, format } = await req.json();
 
   const videoId = parseVideoId(videoUrl ?? "");
   if (!videoId)
@@ -148,7 +158,7 @@ export async function POST(req: NextRequest) {
     .join("\n");
 
   try {
-    const analysis = await analyzeVideo(videoUrl, statsCtx);
+    const analysis = await analyzeVideo(videoUrl, statsCtx, format || "쇼츠");
     return NextResponse.json({ video, channel, analysis });
   } catch (e: any) {
     console.error("analyze 실패:", e?.message || e);

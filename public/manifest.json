@@ -1,6 +1,6 @@
 {
-  "name": "나비 — AI 성장 PD",
-  "short_name": "나비",
+  "name": "navi — AI 성장 PD",
+  "short_name": "navi",
   "description": "매일 아침, 네 채널을 읽고 오늘 만들 영상을 정해주는 AI 성장 PD",
   "lang": "ko",
   "start_url": "/today",
