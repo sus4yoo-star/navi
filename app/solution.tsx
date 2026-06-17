@@ -3,7 +3,7 @@
 // app/solution.tsx — 채널 자동 솔루션 (홈 체험 · /today 공용)
 // channelUrl(+프로필)만 받으면 /api/channel로 최근 10개를 진단·처방. 영상별 깊은 분석은 "자세히" 탭.
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { C } from "@/lib/ui";
 
 // 서버가 (타임아웃 등으로) HTML 오류 페이지를 줘도 안 깨지게 안전 파싱
@@ -410,8 +410,8 @@ export default function Solution({
                 <div className="nv-deep">
                   {deepLoading && (
                     <div className="nv-running" style={{ margin: "6px 0" }}>
-                      <span className="nv-pulse" /> 나비가 이 영상을 직접 보는 중
-                      {v.format !== "쇼츠" && " — 앱을 닫아도 서버에서 계속 분석돼요. 돌아와 다시 열면 결과가 있어요"}
+                      <span className="nv-pulse" /> 영상 보는 중
+                      {v.format !== "쇼츠" && " · 닫아도 계속돼요. 돌아오면 떠 있어요"}
                     </div>
                   )}
                   {deepErr && <p className="nv-err">{deepErr}</p>}
@@ -428,68 +428,9 @@ export default function Solution({
         </div>
       )}
 
-      {sol?.patterns && sol.patterns.length > 0 && (
+      {!!sol?.this_week?.length && (
         <div className="nv-card">
-          <p className="nv-h">진단 — 무엇이 되고 무엇이 안 되나</p>
-          {sol.patterns.map((p, i) => (
-            <div key={i} className={"nv-row " + (i ? "" : "first")}>
-              <div className="nv-strat-pt">{p.point}</div>
-              <div className="nv-mono nv-evi">근거 · {p.evidence}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {sol?.shorts_solution && sol.shorts_solution.length > 0 && (
-        <div className="nv-card">
-          <p className="nv-h">
-            <span className="nv-badge s">쇼츠</span> 처방
-          </p>
-          {sol.shorts_solution.map((s, i) => (
-            <div key={i} className={"nv-row " + (i ? "" : "first")}>
-              <div className="nv-strat-pt">{s.point}</div>
-              <div className="nv-strat-why">{s.why}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {sol?.longform_solution && sol.longform_solution.length > 0 && (
-        <div className="nv-card">
-          <p className="nv-h">
-            <span className="nv-badge l">롱폼</span> 처방
-          </p>
-          {sol.longform_solution.map((s, i) => (
-            <div key={i} className={"nv-row " + (i ? "" : "first")}>
-              <div className="nv-strat-pt">{s.point}</div>
-              <div className="nv-strat-why">{s.why}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {sol?.next_videos && sol.next_videos.length > 0 && (
-        <>
-          <div className="nv-mono nv-eyebrow" style={{ margin: "22px 0 11px" }}>
-            다음에 만들 영상
-          </div>
-          {sol.next_videos.map((n, i) => (
-            <div key={i} className="nv-card">
-              <div className="nv-cue-row">
-                <span className={"nv-badge " + (n.format === "쇼츠" ? "s" : "l")}>{n.format}</span>
-                <Copy text={n.title} />
-              </div>
-              <p className="nv-hook">{n.title}</p>
-              <p className="nv-reason">{n.angle}</p>
-              {n.hook && <div className="nv-firsthook">첫 3초 · {n.hook}</div>}
-            </div>
-          ))}
-        </>
-      )}
-
-      {sol?.this_week && sol.this_week.length > 0 && (
-        <div className="nv-card">
-          <p className="nv-h">이번 주에 할 일</p>
+          <p className="nv-h">오늘부터 할 일</p>
           {sol.this_week.map((t, i) => (
             <div key={i} className={"nv-row " + (i ? "" : "first") + " nv-todo"}>
               <span className="nv-todo-box">□</span>
@@ -497,6 +438,71 @@ export default function Solution({
             </div>
           ))}
         </div>
+      )}
+
+      {(!!sol?.patterns?.length ||
+        !!sol?.shorts_solution?.length ||
+        !!sol?.longform_solution?.length ||
+        !!sol?.next_videos?.length) && (
+        <Collapse title="전략 자세히 · 진단 · 처방 · 다음 영상">
+          {!!sol?.patterns?.length && (
+            <>
+              <p className="nv-h">진단</p>
+              {sol.patterns.map((p, i) => (
+                <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                  <div className="nv-strat-pt">{p.point}</div>
+                  <div className="nv-mono nv-evi">근거 · {p.evidence}</div>
+                </div>
+              ))}
+            </>
+          )}
+          {!!sol?.shorts_solution?.length && (
+            <>
+              <p className="nv-h" style={{ marginTop: 16 }}>
+                <span className="nv-badge s">쇼츠</span> 처방
+              </p>
+              {sol.shorts_solution.map((s, i) => (
+                <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                  <div className="nv-strat-pt">{s.point}</div>
+                  <div className="nv-strat-why">{s.why}</div>
+                </div>
+              ))}
+            </>
+          )}
+          {!!sol?.longform_solution?.length && (
+            <>
+              <p className="nv-h" style={{ marginTop: 16 }}>
+                <span className="nv-badge l">롱폼</span> 처방
+              </p>
+              {sol.longform_solution.map((s, i) => (
+                <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                  <div className="nv-strat-pt">{s.point}</div>
+                  <div className="nv-strat-why">{s.why}</div>
+                </div>
+              ))}
+            </>
+          )}
+          {!!sol?.next_videos?.length && (
+            <>
+              <p className="nv-h" style={{ marginTop: 16 }}>다음에 만들 영상</p>
+              {sol.next_videos.map((n, i) => (
+                <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                  <div className="nv-cue-row">
+                    <span className={"nv-badge " + (n.format === "쇼츠" ? "s" : "l")}>
+                      {n.format}
+                    </span>
+                    <Copy text={n.title} />
+                  </div>
+                  <p className="nv-hook" style={{ fontSize: 15 }}>{n.title}</p>
+                  <p className="nv-reason" style={{ margin: 0 }}>{n.angle}</p>
+                  {n.hook && (
+                    <div className="nv-firsthook" style={{ marginTop: 6 }}>첫 3초 · {n.hook}</div>
+                  )}
+                </div>
+              ))}
+            </>
+          )}
+        </Collapse>
       )}
 
       {benchLoading && !bench && (
@@ -528,136 +534,153 @@ export default function Solution({
   );
 }
 
+// 접기/펼치기 — 핵심만 보이고 나머지는 눌러서 본다.
+function Collapse({ title, children, open: init = false }: { title: string; children: ReactNode; open?: boolean }) {
+  const [open, setOpen] = useState(init);
+  return (
+    <div className="nv-card nv-collapse">
+      <button className="nv-collapse-h" onClick={() => setOpen((o) => !o)}>
+        <span>{title}</span>
+        <span className="nv-collapse-x">{open ? "−" : "+"}</span>
+      </button>
+      {open && <div className="nv-collapse-body">{children}</div>}
+    </div>
+  );
+}
+
+// 쇼츠 한 장 — 핵심(구간·훅·이유)만 보이고, 올릴 거리(대사·자막·캡션·태그)는 눌러서.
+function ShortCard({ s }: { s: Short }) {
+  const [det, setDet] = useState(false);
+  const pkg = [
+    s.title && `제목: ${s.title}`,
+    s.cue && `구간: ${s.cue}`,
+    s.transcript && `대사: ${s.transcript}`,
+    s.onscreen && `화면자막: ${s.onscreen}`,
+    s.caption && `캡션: ${s.caption}`,
+    !!s.hashtags?.length && s.hashtags!.join(" "),
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return (
+    <div className="nv-short-card">
+      <div className="nv-cue-row">
+        <span className="nv-mono nv-cue">{s.cue || "구간"}</span>
+        <Copy text={pkg} label="복사" />
+      </div>
+      <p className="nv-hook" style={{ fontSize: 16, marginTop: 6 }}>
+        &ldquo;{s.hook}&rdquo;
+      </p>
+      {s.reason && <p className="nv-reason" style={{ margin: 0 }}>{s.reason}</p>}
+      <button className="nv-detbtn" onClick={() => setDet((d) => !d)}>
+        {det ? "접기" : "대사 · 자막 · 캡션"}
+      </button>
+      {det && (
+        <div className="nv-short-det">
+          {s.transcript && <p className="nv-transcript">“{s.transcript}”</p>}
+          {s.title && <div className="nv-pkg-line"><b>제목</b> · {s.title}</div>}
+          {s.onscreen && <div className="nv-pkg-line"><b>화면 자막</b> · {s.onscreen}</div>}
+          {s.caption && <div className="nv-pkg-line"><b>캡션</b> · {s.caption}</div>}
+          {!!s.hashtags?.length && (
+            <div className="nv-mono" style={{ fontSize: 12, color: C.accent, marginTop: 5 }}>
+              {s.hashtags!.join(" ")}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Deep({ a }: { a: Analysis }) {
   // 서버가 '센 것부터' 정렬해 보내므로 그 순서를 그대로 유지한다.
   const shorts = a.shorts || [];
+  const hasMore =
+    !!a.titles?.length || !!a.thumbnail || !!a.tags?.length || !!a.next_ideas?.length;
   return (
     <div style={{ marginTop: 6 }}>
       {a.summary && (
         <div className="nv-deep-block">
           <div className="nv-cue-row">
-            <p className="nv-h" style={{ margin: 0 }}>이 영상 요약</p>
+            <p className="nv-h" style={{ margin: 0 }}>요약</p>
             <Copy text={a.summary} />
           </div>
           <p className="nv-reason" style={{ marginTop: 8, fontSize: 14 }}>{a.summary}</p>
         </div>
       )}
-      {a.good && a.good.length > 0 && (
+
+      {shorts.length > 0 && (
         <div className="nv-deep-block">
-          <p className="nv-h">잘한 점</p>
-          {a.good.map((t, i) => (
-            <div key={i} className="nv-fb nv-fb-good">
+          <p className="nv-h">쇼츠 추천 · 센 것부터</p>
+          {shorts.map((s, i) => (
+            <ShortCard key={i} s={s} />
+          ))}
+        </div>
+      )}
+
+      {(!!a.good?.length || !!a.improve?.length) && (
+        <Collapse title="잘한 점 · 고칠 점">
+          {a.good?.map((t, i) => (
+            <div key={"g" + i} className="nv-fb nv-fb-good">
               <span className="nv-fb-mark">＋</span>
               {t}
             </div>
           ))}
-        </div>
-      )}
-      {a.improve && a.improve.length > 0 && (
-        <div className="nv-deep-block">
-          <p className="nv-h">개선점</p>
-          {a.improve.map((t, i) => (
-            <div key={i} className="nv-fb nv-fb-improve">
+          {a.improve?.map((t, i) => (
+            <div key={"i" + i} className="nv-fb nv-fb-improve">
               <span className="nv-fb-mark">→</span>
               {t}
             </div>
           ))}
-        </div>
+        </Collapse>
       )}
-      {shorts.length > 0 && (
-        <div className="nv-deep-block">
-          <p className="nv-h">여기서 쇼츠로 뽑으면 좋아요 — 센 것부터</p>
-          {shorts.map((s, i) => {
-            const pkg = [
-              s.title && `제목: ${s.title}`,
-              s.cue && `구간: ${s.cue}`,
-              s.onscreen && `화면자막: ${s.onscreen}`,
-              s.caption && `캡션: ${s.caption}`,
-              s.hashtags?.length && s.hashtags.join(" "),
-            ]
-              .filter(Boolean)
-              .join("\n");
-            return (
-              <div key={i} className="nv-short-card">
-                <div className="nv-cue-row">
-                  <span className="nv-mono nv-cue">{s.cue || "CUE " + (i + 1)}</span>
+
+      {hasMore && (
+        <Collapse title="제목 · 썸네일 · 태그 · 다음 영상">
+          {!!a.titles?.length && (
+            <>
+              <p className="nv-h">제목 후보</p>
+              {a.titles.map((t, i) => (
+                <div key={i} className="nv-row-flex" style={{ padding: "6px 0" }}>
+                  <span style={{ fontSize: 14 }}>{t}</span>
+                  <Copy text={t} />
                 </div>
-                <p className="nv-hook" style={{ fontSize: 16, marginTop: 6 }}>
-                  &ldquo;{s.hook}&rdquo;
-                </p>
-                {s.transcript && (
-                  <p className="nv-transcript">“{s.transcript}”</p>
-                )}
-                <p className="nv-reason">{s.reason}</p>
-                {s.onscreen && (
-                  <div className="nv-mono nv-copy-line">화면 자막: {s.onscreen}</div>
-                )}
-                {s.caption && (
-                  <div className="nv-pkg-line">
-                    <span>캡션 · {s.caption}</span>
-                  </div>
-                )}
-                {s.hashtags && s.hashtags.length > 0 && (
-                  <div className="nv-mono" style={{ fontSize: 12, color: C.accent, marginTop: 4 }}>
-                    {s.hashtags.join(" ")}
-                  </div>
-                )}
-                <div className="nv-short-foot">
-                  <span className="nv-shorts-title"><b>쇼츠 제목</b> · {s.title}</span>
-                  <Copy text={pkg} label="패키지 복사" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {a.titles && a.titles.length > 0 && (
-        <div className="nv-deep-block">
-          <p className="nv-h">더 끌리는 제목</p>
-          {a.titles.map((t, i) => (
-            <div key={i} className="nv-row-flex" style={{ padding: "6px 0" }}>
-              <span style={{ fontSize: 14 }}>{t}</span>
-              <Copy text={t} />
-            </div>
-          ))}
-        </div>
-      )}
-      {a.thumbnail && (
-        <div className="nv-deep-block">
-          <p className="nv-h">썸네일 제안</p>
-          <div style={{ fontSize: 14 }}>{a.thumbnail.concept}</div>
-          {a.thumbnail.text && (
-            <div className="nv-mono nv-copy-line">카피: {a.thumbnail.text}</div>
+              ))}
+            </>
           )}
-        </div>
-      )}
-      {a.tags && a.tags.length > 0 && (
-        <div className="nv-deep-block">
-          <div className="nv-cue-row">
-            <p className="nv-h" style={{ margin: 0 }}>
-              태그
-            </p>
-            <Copy text={a.tags.join(", ")} label="전체 복사" />
-          </div>
-          <div style={{ marginTop: 8 }}>
-            {a.tags.map((t, i) => (
-              <span className="nv-tag nv-mono" key={i}>
-                {t}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-      {a.next_ideas && a.next_ideas.length > 0 && (
-        <div className="nv-deep-block">
-          <p className="nv-h">다음 영상 아이디어</p>
-          {a.next_ideas.map((t, i) => (
-            <div key={i} className="nv-todo" style={{ padding: "6px 0" }}>
-              <span className="nv-todo-box">·</span>
-              {t}
-            </div>
-          ))}
-        </div>
+          {a.thumbnail && (
+            <>
+              <p className="nv-h" style={{ marginTop: 14 }}>썸네일</p>
+              <div style={{ fontSize: 14 }}>{a.thumbnail.concept}</div>
+              {a.thumbnail.text && (
+                <div className="nv-mono nv-copy-line">카피: {a.thumbnail.text}</div>
+              )}
+            </>
+          )}
+          {!!a.tags?.length && (
+            <>
+              <div className="nv-cue-row" style={{ marginTop: 14 }}>
+                <p className="nv-h" style={{ margin: 0 }}>태그</p>
+                <Copy text={a.tags.join(", ")} label="전체 복사" />
+              </div>
+              <div style={{ marginTop: 8 }}>
+                {a.tags.map((t, i) => (
+                  <span className="nv-tag nv-mono" key={i}>{t}</span>
+                ))}
+              </div>
+            </>
+          )}
+          {!!a.next_ideas?.length && (
+            <>
+              <p className="nv-h" style={{ marginTop: 14 }}>다음 영상</p>
+              {a.next_ideas.map((t, i) => (
+                <div key={i} className="nv-todo" style={{ padding: "6px 0" }}>
+                  <span className="nv-todo-box">·</span>
+                  {t}
+                </div>
+              ))}
+            </>
+          )}
+        </Collapse>
       )}
     </div>
   );
@@ -739,6 +762,13 @@ const css = `
 .nv-more{width:100%;margin-top:12px;padding:11px;background:transparent;border:1px solid ${C.line};border-radius:9px;color:${C.sub};font-size:13.5px;font-weight:600;cursor:pointer}
 .nv-more:hover{border-color:${C.accent};color:${C.accent}}
 .nv-more:disabled{opacity:.55;cursor:default}
+.nv-collapse{padding:0 !important;overflow:hidden}
+.nv-collapse-h{width:100%;display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:transparent;border:0;cursor:pointer;font-size:14px;font-weight:700;color:${C.ink};text-align:left}
+.nv-collapse-x{font-size:20px;color:${C.faint};font-weight:400;line-height:1}
+.nv-collapse-body{padding:2px 20px 18px}
+.nv-detbtn{margin-top:10px;padding:6px 12px;background:transparent;border:1px solid ${C.line};border-radius:999px;color:${C.sub};font-size:12px;font-weight:600;cursor:pointer}
+.nv-detbtn:hover{border-color:${C.accent};color:${C.accent}}
+.nv-short-det{margin-top:10px;padding-top:10px;border-top:1px dashed ${C.line}}
 .nv-read{font-size:14.5px;color:${C.ink};line-height:1.65;margin:11px 0 0}
 .nv-evi{font-size:12px;color:${C.live};line-height:1.5;margin-top:3px}
 .nv-strat-pt{font-size:14.5px;font-weight:700;margin-bottom:3px;color:${C.ink}}
