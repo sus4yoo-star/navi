@@ -6,7 +6,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { C, Wing, GRAD } from "@/lib/ui";
+import { C, Wing, GRAD, GRAD_SOFT } from "@/lib/ui";
 import { supabase, signIn, signOut } from "@/lib/navi";
 import Solution from "./solution";
 
@@ -112,7 +112,7 @@ export default function Home() {
               </button>
             )}
             <Link href="/today" className="nv-hero-link">
-              오늘의 브리핑
+              오늘의 영감
             </Link>
           </div>
         </div>
@@ -120,24 +120,24 @@ export default function Home() {
         <div className="nv-wrap nv-hero-body">
           <div className="nv-status">
             <span className="nv-live" />
-            SYSTEM · 채널 분석 엔진 가동중
+            LIVE · 영감 엔진 가동중
           </div>
           <h1 className="nv-hero-h1">
-            매일 아침, 내 채널을 읽고
+            크리에이터에게
             <br />
-            <span className="nv-accent">오늘 만들 영상</span>을 정해주는
+            <span className="nv-accent">무한한 영감</span>을
             <br />
-            AI 성장 PD
+            매일 아침.
           </h1>
           <p className="nv-hero-sub">
-            가입할 때 채널 URL 한 번 — 그다음은 나비가 알아서. 최근 영상을 직접 보고 진단·트렌드·
-            오늘의 영상까지 매일 자동으로 도착해요.
+            채널 URL 한 번이면 끝. 나비가 바깥을 정찰해 영감을 길어오고, 내 위치 진단부터
+            오늘 만들 영상까지 매일 가져와요.
           </p>
 
           {authed ? (
             <div className="nv-cta-row">
               <button className="nv-btn nv-btn-lg" onClick={() => router.push("/today")}>
-                오늘의 브리핑 보기
+                오늘의 영감 보기
               </button>
               <span className="nv-mono nv-hero-foot">로그인 완료 · 채널 연결됨이면 바로 표시</span>
             </div>
@@ -165,12 +165,12 @@ export default function Home() {
       {!authed && (
         <div className="nv-wrap" style={{ paddingTop: 30 }}>
           <div className="nv-card nv-card-accent">
-            <span className="nv-mono nv-eyebrow nv-eyebrow-accent">daily magazine</span>
+            <span className="nv-mono nv-eyebrow nv-eyebrow-accent">daily inspiration</span>
             <h2 className="nv-h2" style={{ margin: "8px 0 5px" }}>
-              매일 아침, 내 채널 매거진을 메일로
+              매일 아침, 영감 한 통을 메일로
             </h2>
             <p className="nv-muted2" style={{ marginBottom: 16 }}>
-              비슷한 채널·지금 뜨는 콘텐츠·오늘 만들 영상까지. 가입 없이 이메일과 채널만 넣으면 끝.
+              영감 줄 채널·지금 먹히는 기법·오늘 만들 영상까지. 가입 없이 이메일과 채널만 넣으면 끝.
             </p>
             {subState === "done" ? (
               <div className="nv-mono" style={{ color: C.live, fontSize: 14, fontWeight: 600 }}>
@@ -198,7 +198,7 @@ export default function Home() {
                   placeholder="닮고 싶은 채널 URL (선택)"
                 />
                 <button className="nv-btn" onClick={subscribe} disabled={subState === "busy"}>
-                  {subState === "busy" ? "신청 중…" : "매일 매거진 받기"}
+                  {subState === "busy" ? "신청 중…" : "매일 영감 받기"}
                 </button>
                 {subErr && <p className="nv-err">{subErr}</p>}
               </div>
@@ -212,10 +212,10 @@ export default function Home() {
         <div className="nv-try-head">
           <div>
             <div className="nv-mono nv-eyebrow">no-login · 체험</div>
-            <h2 className="nv-h2">채널 URL만 넣으면, 최근 영상까지 알아서 분석</h2>
+            <h2 className="nv-h2">채널 URL만 넣으면, 영감이 쏟아집니다</h2>
             <p className="nv-muted2">
-              최근 10개(쇼츠·롱폼)를 읽어 진단하고 처방·다음 영상까지 제안해드려요. 영상 URL은
-              따로 넣지 않아요.
+              바깥의 영감 채널부터 내 위치 진단·오늘 만들 영상까지. 최근 10개(쇼츠·롱폼)를 읽어
+              가져와요. 영상 URL은 따로 넣지 않아요.
             </p>
           </div>
           {!tryOpen && (
@@ -374,7 +374,7 @@ const css = `
 .nv-wrap{max-width:780px;margin:0 auto;padding:0 22px}
 
 /* ── 다크 히어로 ── */
-.nv-hero{position:relative;overflow:hidden;background:#0F1115;color:#fff;border-bottom:1px solid rgba(255,255,255,.08)}
+.nv-hero{position:relative;overflow:hidden;background:transparent;color:#fff;border-bottom:1px solid rgba(255,255,255,.08)}
 .nv-hero-grid{position:absolute;inset:0;pointer-events:none;
   background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);
   background-size:34px 34px;
@@ -382,7 +382,7 @@ const css = `
   mask-image:radial-gradient(120% 70% at 18% 0%,#000 0%,transparent 70%)}
 .nv-hero-top{position:relative;z-index:1;display:flex;align-items:center;gap:11px;padding-top:18px;padding-bottom:6px}
 .nv-brand-link{display:flex;align-items:center;gap:11px;text-decoration:none}
-.nv-brand{font-family:var(--font-brand),'Space Grotesk',system-ui,sans-serif;font-size:23px;font-weight:700;letter-spacing:-.01em;color:#fff}
+.nv-brand{font-family:var(--font-brand),'Space Grotesk',system-ui,sans-serif;font-size:23px;font-weight:700;letter-spacing:-.01em;background:${GRAD};-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
 .nv-hero-nav{margin-left:auto;display:flex;align-items:center;gap:9px}
 .nv-hero-link{font-size:12.5px;color:rgba(255,255,255,.72);background:none;font-family:inherit;cursor:pointer;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 13px;text-decoration:none;transition:all .14s}
 .nv-hero-link:hover{border-color:rgba(255,255,255,.45);color:#fff}
@@ -390,8 +390,8 @@ const css = `
 .nv-status{display:inline-flex;align-items:center;gap:8px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:5px 11px;margin-bottom:20px}
 .nv-live{width:7px;height:7px;border-radius:50%;background:#36E0A0;box-shadow:0 0 10px #36E0A0;display:inline-block;animation:nvp 1.4s ease-in-out infinite}
 @keyframes nvp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
-.nv-hero-h1{font-size:38px;line-height:1.18;font-weight:700;letter-spacing:-.03em;margin:0 0 16px;color:#fff}
-.nv-accent{color:#9C95FF}
+.nv-hero-h1{font-size:46px;line-height:1.12;font-weight:800;letter-spacing:-.035em;margin:0 0 18px;color:#fff}
+.nv-accent{background:${GRAD};-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
 .nv-hero-sub{font-size:15px;line-height:1.7;color:rgba(255,255,255,.74);max-width:560px;margin:0 0 26px}
 .nv-cta-row{display:flex;gap:11px;flex-wrap:wrap;align-items:center;margin-bottom:13px}
 .nv-btn-oauth{display:inline-flex;align-items:center;gap:9px;background:#fff;color:#15171C;border:none;border-radius:10px;padding:13px 20px;font-size:14.5px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-.01em;transition:transform .05s,box-shadow .14s;box-shadow:0 1px 0 rgba(0,0,0,.04)}
@@ -407,19 +407,19 @@ const css = `
 .nv-muted2{font-size:13.5px;color:${C.sub};line-height:1.6;margin:0}
 .nv-eyebrow{font-size:11px;letter-spacing:.16em;color:${C.faint};font-weight:600;text-transform:uppercase}
 .nv-eyebrow-accent{color:${C.accent}}
-.nv-field{width:100%;box-sizing:border-box;background:#fff;border:1.5px solid #D5D8E1;border-radius:10px;padding:13px 15px;font-size:14.5px;color:${C.ink};font-family:inherit;outline:none;transition:border-color .14s,box-shadow .14s}
-.nv-field::placeholder{color:#A6ABB6}
+.nv-field{width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid ${C.line};border-radius:10px;padding:13px 15px;font-size:14.5px;color:${C.ink};font-family:inherit;outline:none;transition:border-color .14s,box-shadow .14s}
+.nv-field::placeholder{color:${C.faint}}
 .nv-field:focus{border-color:${C.accent};box-shadow:0 0 0 3px ${C.accentTint}}
 .nv-label{font-size:13px;color:${C.ink};font-weight:600;margin:0 0 7px;display:block}
-.nv-btn{background:${C.accent};color:#fff;border:none;border-radius:10px;padding:13px 18px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:box-shadow .14s,transform .05s;letter-spacing:-.01em}
-.nv-btn:hover:not(:disabled){box-shadow:0 6px 20px rgba(75,67,214,.32)}
+.nv-btn{background:${GRAD};color:#fff;border:none;border-radius:11px;padding:13px 19px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:box-shadow .16s,transform .05s,filter .16s;letter-spacing:-.01em;box-shadow:0 6px 20px -6px rgba(123,93,230,.5)}
+.nv-btn:hover:not(:disabled){box-shadow:0 10px 30px -6px rgba(255,93,143,.5);filter:brightness(1.08)}
 .nv-btn:active:not(:disabled){transform:translateY(1px)}
 .nv-btn:disabled{opacity:.45;cursor:default}
-.nv-ghost{background:transparent;border:1.5px solid ${C.line};color:${C.sub};border-radius:9px;padding:8px 13px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .14s}
-.nv-ghost:hover{border-color:${C.sub};color:${C.ink}}
-.nv-card{background:#fff;border:1px solid ${C.line};border-radius:14px;padding:20px 22px;margin-bottom:14px;box-shadow:0 1px 2px rgba(20,23,28,.04),0 8px 24px -18px rgba(20,23,28,.18)}
-.nv-card-accent{background:#FBFBFE;border-color:${C.accent};box-shadow:0 8px 28px -16px rgba(75,67,214,.4)}
-.nv-chip{display:inline-block;background:#fff;border:1.5px solid ${C.line};border-radius:9px;padding:8px 13px;font-size:13px;margin:0 7px 7px 0;color:${C.sub};font-weight:500;transition:all .12s}
+.nv-ghost{background:rgba(255,255,255,.04);border:1px solid ${C.line};color:${C.sub};border-radius:9px;padding:8px 13px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .14s}
+.nv-ghost:hover{border-color:${C.accent};color:${C.ink}}
+.nv-card{background:${C.card};border:1px solid ${C.line};border-radius:16px;padding:20px 22px;margin-bottom:14px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 8px 30px -16px rgba(0,0,0,.6)}
+.nv-card-accent{background:${GRAD_SOFT};border-color:rgba(123,93,230,.45);box-shadow:0 10px 34px -14px rgba(123,93,230,.5)}
+.nv-chip{display:inline-block;background:rgba(255,255,255,.05);border:1px solid ${C.line};border-radius:9px;padding:8px 13px;font-size:13px;margin:0 7px 7px 0;color:${C.sub};font-weight:500;transition:all .12s}
 .nv-pick{cursor:pointer;user-select:none}
 .nv-pick.on{background:${C.accentTint};color:${C.accentInk};border-color:${C.accent}}
 .nv-step{display:flex;gap:8px;align-items:center;font-size:12px;color:${C.sub};margin:6px 0 20px;letter-spacing:.02em;font-weight:500}
