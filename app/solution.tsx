@@ -107,7 +107,16 @@ type Sol = {
   longform_solution?: { point: string; why: string }[];
   next_videos?: { title: string; format: string; angle: string; hook: string }[];
   this_week?: string[];
-  benchmark?: { name: string; summary: string; learn: string[]; auto?: boolean } | null;
+  benchmark?: {
+    name: string;
+    summary: string;
+    learn: string[];
+    auto?: boolean;
+    why?: string[];
+    mine?: { subs: number; avgViews: number; shortsPct: number; n: number } | null;
+    theirs?: { subs: number; avgViews: number; shortsPct: number; n: number };
+    refs?: { title: string; views: number; format: string }[];
+  } | null;
 };
 type Short = {
   cue?: string; // 시작-끝 타임코드
@@ -199,7 +208,12 @@ export default function Solution({
     // 비교는 별도 요청으로 병렬 진행(메인 진단 속도에 영향 X).
     // benchmarkUrl이 없어도 자동으로 '잘 되는 비슷한 채널'을 찾아 비교한다.
     setBenchLoading(true);
-    callJson("/api/benchmark", { channel: base.channel, benchmarkUrl, niche })
+    callJson("/api/benchmark", {
+      channel: base.channel,
+      benchmarkUrl,
+      niche,
+      myVideos: (base.videos || []).map((v: Video) => ({ views: v.views, format: v.format })),
+    })
       .then((b) => setBench(b.benchmark || null))
       .catch(() => setBench(null))
       .finally(() => setBenchLoading(false));
@@ -531,15 +545,73 @@ export default function Solution({
           <p className="nv-hook" style={{ fontSize: 16, margin: "9px 0 5px" }}>
             {bench.name}
           </p>
-          <p className="nv-reason" style={{ marginBottom: 10 }}>
-            {bench.summary}
-          </p>
-          {(bench.learn || []).map((t, i) => (
-            <div key={i} className="nv-fb nv-fb-good">
-              <span className="nv-fb-mark">＋</span>
-              {t}
+          <p className="nv-reason" style={{ marginBottom: 12 }}>{bench.summary}</p>
+
+          {bench.theirs && (
+            <div className="nv-vs">
+              <div className="nv-vs-row nv-vs-head">
+                <span />
+                <span>내 채널</span>
+                <span>{bench.name}</span>
+              </div>
+              <div className="nv-vs-row">
+                <span className="nv-vs-l">구독자</span>
+                <span>{bench.mine ? bench.mine.subs.toLocaleString() : "—"}</span>
+                <span className="nv-vs-hi">{bench.theirs.subs.toLocaleString()}</span>
+              </div>
+              {(bench.mine?.n || bench.theirs.n) > 0 && (
+                <div className="nv-vs-row">
+                  <span className="nv-vs-l">평균 조회</span>
+                  <span>{bench.mine?.n ? bench.mine.avgViews.toLocaleString() : "—"}</span>
+                  <span className="nv-vs-hi">{bench.theirs.n ? bench.theirs.avgViews.toLocaleString() : "—"}</span>
+                </div>
+              )}
+              {(bench.mine?.n || bench.theirs.n) > 0 && (
+                <div className="nv-vs-row">
+                  <span className="nv-vs-l">쇼츠 비율</span>
+                  <span>{bench.mine?.n ? bench.mine.shortsPct + "%" : "—"}</span>
+                  <span className="nv-vs-hi">{bench.theirs.n ? bench.theirs.shortsPct + "%" : "—"}</span>
+                </div>
+              )}
             </div>
-          ))}
+          )}
+
+          {!!bench.why?.length && (
+            <>
+              <p className="nv-h" style={{ marginTop: 14 }}>잘 되는 이유</p>
+              {bench.why.map((t, i) => (
+                <div key={i} className="nv-fb nv-fb-good">
+                  <span className="nv-fb-mark">＋</span>
+                  {t}
+                </div>
+              ))}
+            </>
+          )}
+
+          {!!bench.learn?.length && (
+            <>
+              <p className="nv-h" style={{ marginTop: 14 }}>내가 따라할 것</p>
+              {bench.learn.map((t, i) => (
+                <div key={i} className="nv-fb nv-fb-improve">
+                  <span className="nv-fb-mark">→</span>
+                  {t}
+                </div>
+              ))}
+            </>
+          )}
+
+          {!!bench.refs?.length && (
+            <div className="nv-vs-refs">
+              <p className="nv-h" style={{ marginTop: 14 }}>이 채널 역대 히트</p>
+              {bench.refs.map((r, i) => (
+                <div key={i} className="nv-ref-row">
+                  <span className={"nv-badge " + (r.format === "쇼츠" ? "s" : "l")}>{r.format}</span>
+                  <span className="nv-ref-title">{r.title}</span>
+                  <span className="nv-mono nv-ref-views">{r.views.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>
@@ -781,6 +853,18 @@ const css = `
 .nv-detbtn{margin-top:10px;padding:6px 12px;background:transparent;border:1px solid ${C.line};border-radius:999px;color:${C.sub};font-size:12px;font-weight:600;cursor:pointer}
 .nv-detbtn:hover{border-color:${C.accent};color:${C.accent}}
 .nv-short-det{margin-top:10px;padding-top:10px;border-top:1px dashed ${C.line}}
+.nv-vs{border:1px solid ${C.line};border-radius:10px;overflow:hidden;margin-bottom:4px;background:#fff}
+.nv-vs-row{display:grid;grid-template-columns:1.1fr 1fr 1.4fr;align-items:center;padding:9px 12px;font-size:13.5px;border-top:1px solid ${C.line}}
+.nv-vs-row:first-child{border-top:0}
+.nv-vs-head{font-size:11px;color:${C.faint};letter-spacing:.04em;font-weight:600;background:#FAFAFC}
+.nv-vs-head span:last-child{color:${C.accent}}
+.nv-vs-l{color:${C.faint};font-size:12px}
+.nv-vs-row span{font-weight:600;color:${C.ink}}
+.nv-vs-row span.nv-vs-l{font-weight:500}
+.nv-vs-hi{color:${C.accent} !important}
+.nv-ref-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid ${C.line}}
+.nv-ref-title{flex:1;font-size:13px;color:${C.ink};overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nv-ref-views{font-size:12px;color:${C.sub}}
 .nv-read{font-size:14.5px;color:${C.ink};line-height:1.65;margin:11px 0 0}
 .nv-evi{font-size:12px;color:${C.live};line-height:1.5;margin-top:3px}
 .nv-strat-pt{font-size:14.5px;font-weight:700;margin-bottom:3px;color:${C.ink}}
