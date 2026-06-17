@@ -6,7 +6,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, registerPush, iosNeedsInstall } from "@/lib/navi";
+import Link from "next/link";
+import { supabase, registerPush, iosNeedsInstall, signOut } from "@/lib/navi";
 import { C, Wing } from "@/lib/ui";
 import Solution from "../solution";
 
@@ -81,9 +82,19 @@ export default function Today() {
 
       <div className="nv-topbar">
         <div className="nv-wrap nv-topbar-in">
-          <Wing />
-          <span className="nv-brand">navi</span>
-          <span className="nv-mono nv-topbar-date">{todayLabel}</span>
+          <Link href="/" className="nv-brand-link">
+            <Wing />
+            <span className="nv-brand">navi</span>
+          </Link>
+          <div className="nv-top-right">
+            <span className="nv-mono nv-topbar-date">{todayLabel}</span>
+            <Link href="/onboarding" className="nv-toplink">
+              채널 설정
+            </Link>
+            <button className="nv-toplink" onClick={signOut}>
+              로그아웃
+            </button>
+          </div>
         </div>
       </div>
 
@@ -165,8 +176,12 @@ const css = `
 .nv-wrap{max-width:680px;margin:0 auto;padding:0 22px 48px}
 .nv-topbar{background:#0F1115;border-bottom:1px solid rgba(255,255,255,.08)}
 .nv-topbar-in{display:flex;align-items:center;gap:11px;padding:18px 22px}
+.nv-brand-link{display:flex;align-items:center;gap:11px;text-decoration:none}
 .nv-brand{font-family:var(--font-brand),'Space Grotesk',system-ui,sans-serif;font-size:23px;font-weight:700;letter-spacing:-.01em;color:#fff}
-.nv-topbar-date{font-size:11.5px;color:rgba(255,255,255,.58);margin-left:auto}
+.nv-top-right{margin-left:auto;display:flex;align-items:center;gap:15px}
+.nv-topbar-date{font-size:11.5px;color:rgba(255,255,255,.58)}
+.nv-toplink{background:none;border:none;color:rgba(255,255,255,.7);font-size:12.5px;font-family:inherit;cursor:pointer;text-decoration:none;padding:0;transition:color .14s}
+.nv-toplink:hover{color:#fff}
 .nv-link{background:none;border:none;color:${C.accent};font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:2px}
 .nv-card{background:${C.card};border:1px solid ${C.line};border-radius:14px;padding:18px 20px;margin-bottom:13px;box-shadow:0 1px 2px rgba(20,23,28,.04),0 8px 24px -18px rgba(20,23,28,.18)}
 .nv-eyebrow{font-size:11px;letter-spacing:.16em;color:${C.faint};font-weight:600;text-transform:uppercase}

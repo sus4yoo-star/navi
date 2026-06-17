@@ -5,7 +5,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, signIn, saveProfile } from "@/lib/navi";
+import Link from "next/link";
+import { supabase, signIn, saveProfile, signOut } from "@/lib/navi";
 import { C, Wing } from "@/lib/ui";
 
 const TONES = [
@@ -98,9 +99,19 @@ export default function Onboarding() {
 
       <div className="nv-topbar">
         <div className="nv-wrap nv-topbar-in">
-          <Wing />
-          <span className="nv-brand">navi</span>
-          <span className="nv-mono nv-topbar-date">가입 · 한 번만</span>
+          <Link href="/" className="nv-brand-link">
+            <Wing />
+            <span className="nv-brand">navi</span>
+          </Link>
+          <div className="nv-top-right">
+            {authed ? (
+              <button className="nv-toplink" onClick={signOut}>
+                로그아웃
+              </button>
+            ) : (
+              <span className="nv-mono nv-topbar-date">가입 · 한 번만</span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -258,8 +269,12 @@ const css = `
 .nv-wrap{max-width:680px;margin:0 auto;padding:0 22px 48px}
 .nv-topbar{background:#0F1115;border-bottom:1px solid rgba(255,255,255,.08)}
 .nv-topbar-in{display:flex;align-items:center;gap:11px;padding:18px 22px}
+.nv-brand-link{display:flex;align-items:center;gap:11px;text-decoration:none}
 .nv-brand{font-family:var(--font-brand),'Space Grotesk',system-ui,sans-serif;font-size:23px;font-weight:700;letter-spacing:-.01em;color:#fff}
-.nv-topbar-date{font-size:11.5px;color:rgba(255,255,255,.58);margin-left:auto}
+.nv-top-right{margin-left:auto;display:flex;align-items:center;gap:15px}
+.nv-topbar-date{font-size:11.5px;color:rgba(255,255,255,.58)}
+.nv-toplink{background:none;border:none;color:rgba(255,255,255,.7);font-size:12.5px;font-family:inherit;cursor:pointer;text-decoration:none;padding:0;transition:color .14s}
+.nv-toplink:hover{color:#fff}
 .nv-field{width:100%;box-sizing:border-box;background:${C.card};border:1.5px solid #D5D8E1;border-radius:10px;padding:13px 15px;font-size:14.5px;color:${C.ink};font-family:inherit;outline:none;transition:border-color .14s,box-shadow .14s}
 .nv-field::placeholder{color:#A6ABB6}
 .nv-field:focus{border-color:${C.accent};box-shadow:0 0 0 3px ${C.accentTint}}

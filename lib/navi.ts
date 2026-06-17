@@ -14,6 +14,12 @@ export async function signIn(provider: "google" | "kakao") {
   });
 }
 
+// ── 로그아웃 → 홈 ──
+export async function signOut() {
+  await supabase.auth.signOut();
+  if (typeof location !== "undefined") location.href = "/";
+}
+
 // ── 온보딩: 채널 URL + 확정 프로필 저장 (가입 때 한 번) ──
 export type Profile = {
   channel_url: string;

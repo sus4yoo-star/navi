@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { C, Wing } from "@/lib/ui";
-import { supabase, signIn } from "@/lib/navi";
+import { supabase, signIn, signOut } from "@/lib/navi";
 import Solution from "./solution";
 
 const TONES = [
@@ -72,11 +72,20 @@ export default function Home() {
       {/* ── 다크 히어로: 로그인 우선 ── */}
       <header className="nv-hero">
         <div className="nv-wrap nv-hero-top">
-          <Wing />
-          <span className="nv-brand">navi</span>
-          <Link href="/today" className="nv-hero-link">
-            오늘의 브리핑
+          <Link href="/" className="nv-brand-link">
+            <Wing />
+            <span className="nv-brand">navi</span>
           </Link>
+          <div className="nv-hero-nav">
+            {authed && (
+              <button className="nv-hero-link" onClick={signOut}>
+                로그아웃
+              </button>
+            )}
+            <Link href="/today" className="nv-hero-link">
+              오늘의 브리핑
+            </Link>
+          </div>
         </div>
 
         <div className="nv-wrap nv-hero-body">
@@ -297,8 +306,10 @@ const css = `
   -webkit-mask-image:radial-gradient(120% 70% at 18% 0%,#000 0%,transparent 70%);
   mask-image:radial-gradient(120% 70% at 18% 0%,#000 0%,transparent 70%)}
 .nv-hero-top{position:relative;z-index:1;display:flex;align-items:center;gap:11px;padding-top:18px;padding-bottom:6px}
+.nv-brand-link{display:flex;align-items:center;gap:11px;text-decoration:none}
 .nv-brand{font-family:var(--font-brand),'Space Grotesk',system-ui,sans-serif;font-size:23px;font-weight:700;letter-spacing:-.01em;color:#fff}
-.nv-hero-link{margin-left:auto;font-size:12.5px;color:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 13px;text-decoration:none;transition:all .14s}
+.nv-hero-nav{margin-left:auto;display:flex;align-items:center;gap:9px}
+.nv-hero-link{font-size:12.5px;color:rgba(255,255,255,.72);background:none;font-family:inherit;cursor:pointer;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 13px;text-decoration:none;transition:all .14s}
 .nv-hero-link:hover{border-color:rgba(255,255,255,.45);color:#fff}
 .nv-hero-body{position:relative;z-index:1;padding:26px 22px 44px}
 .nv-status{display:inline-flex;align-items:center;gap:8px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:5px 11px;margin-bottom:20px}
