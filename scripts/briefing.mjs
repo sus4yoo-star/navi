@@ -1,135 +1,194 @@
 // scripts/briefing.mjs — GitHub Actions가 매일 실행하는 브리핑 엔진
 // 실행: node scripts/briefing.mjs   (env는 워크플로우가 주입)
-// 의존성: @supabase/supabase-js @anthropic-ai/sdk web-push
+// 의존성: @supabase/supabase-js web-push
+//
+// 통일: 화면(/today)과 동일한 '통합 brief 엔진'을 그대로 호출한다.
+//   1) SITE_URL/api/channel  → { channel, videos }
+//   2) SITE_URL/api/brief/start → { id } (백그라운드)
+//   3) SITE_URL/api/analyze/status?id= 폴링 → 통합 브리핑(판세·내위치·진단·기획·전략·할일)
+//   4) briefings 저장 + 이메일 + 웹푸시
+// → 로직 중복 없이 라이브와 100% 동일.
 
 import { createClient } from "@supabase/supabase-js";
-import Anthropic from "@anthropic-ai/sdk";
 import webpush from "web-push";
 
 const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const YT = process.env.YOUTUBE_API_KEY;
 webpush.setVapidDetails("mailto:hello@theamov.com", process.env.VAPID_PUBLIC, process.env.VAPID_PRIVATE);
+const SITE = (process.env.SITE_URL || "").replace(/\/$/, "");
 
-const SYSTEM = `당신은 '나비'입니다. 한국 1인 크리에이터의 AI 성장 PD입니다.
-'내 채널 현황'(최근 업로드와 성과)과 '니치 트렌드 데이터'를 근거로 오늘의 브리핑을 만드세요. 데이터에 없는 수치·트렌드를 절대 지어내지 마세요.
-- channel_note: 내 채널 현황에서 실제로 읽히는 한 줄 (어떤 영상이 잘됐는지, 패턴/공백). 데이터 근거 필수.
-- trends: 이 채널 주제에서 지금 뜨는 흐름 3개. title + why.
-- today_pick: 오늘 만들면 좋을 영상 1개. title, angle, hook.
-- weekly: 이번 주 밀어볼 방향 한 줄.
-- similar_hit: 비슷한 주제에서 잘 터진 실제 영상 1개. title, why, source.
-- crossover_hit: 컨셉·분야는 다르지만 크게 터진 실제 영상 1개 — 그 패턴을 이 채널에 어떻게 옮길지. title, why, source.
-클리셰·이모지 없이. 아래 JSON 하나만 출력. 그 외 텍스트·코드펜스 금지.
-{"channel_note":"...","trends":[{"title":"...","why":"..."}],"today_pick":{"title":"...","angle":"...","hook":"..."},"weekly":"...","similar_hit":{"title":"...","why":"...","source":"..."},"crossover_hit":{"title":"...","why":"...","source":"..."}}`;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const esc = (s) =>
+  String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-function parseChannel(url) {
-  try {
-    const p = new URL(url).pathname.split("/").filter(Boolean);
-    if (p[0]?.startsWith("@")) return `forHandle=${encodeURIComponent(p[0])}`;
-    if (p[0] === "channel") return `id=${p[1]}`;
-    return null;
-  } catch { return null; }
-}
-async function resolveChannel(url) {
-  const q = parseChannel(url);
-  if (!q) return null;
-  const j = await (await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&${q}&key=${YT}`)).json();
-  const c = j.items?.[0];
-  if (!c) return null;
-  return { title: c.snippet.title, subs: +(c.statistics.subscriberCount || 0), videoCount: +(c.statistics.videoCount || 0), uploads: c.contentDetails.relatedPlaylists.uploads };
-}
-async function getRecentUploads(uploadsId) {
-  const pl = await (await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=6&playlistId=${uploadsId}&key=${YT}`)).json();
-  const ids = (pl.items || []).map((i) => i.contentDetails.videoId).join(",");
-  if (!ids) return [];
-  const v = await (await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids}&key=${YT}`)).json();
-  return (v.items || []).map((x) => ({ title: x.snippet.title, views: +(x.statistics.viewCount || 0), date: x.snippet.publishedAt }));
-}
-async function getTrends(niche) {
-  const after = new Date(Date.now() - 14 * 864e5).toISOString();
-  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=10&publishedAfter=${after}&relevanceLanguage=ko&regionCode=KR&q=${encodeURIComponent(niche)}&key=${YT}`;
-  const j = await (await fetch(url)).json();
-  return (j.items || []).map((it) => ({ title: it.snippet.title, channel: it.snippet.channelTitle }));
-}
-function parseJson(t) { const s = t.indexOf("{"), e = t.lastIndexOf("}"); if (s < 0 || e <= s) return null; try { return JSON.parse(t.slice(s, e + 1)); } catch { return null; } }
-
-async function getBenchmarkBlock(url) {
-  if (!url) return "";
-  const bench = await resolveChannel(url);
-  if (!bench) return "";
-  const recent = await getRecentUploads(bench.uploads).catch(() => []);
-  return `\n\n[닮고 싶은 채널(워너비)]\n${bench.title} · 구독자 ${bench.subs.toLocaleString()}\n최근: ${recent.slice(0, 5).map((r) => `"${r.title}"(${r.views.toLocaleString()}회)`).join(", ")}`;
-}
-
-async function buildBriefing(p, cs, recent, trends, benchmarkBlock = "") {
-  const channelBlock = cs
-    ? `채널: ${cs.title} · 구독자 ${cs.subs.toLocaleString()} · 영상 ${cs.videoCount}개\n최근 업로드:\n${recent.map((r) => `- ${r.title} (${r.views.toLocaleString()}회, ${r.date.slice(0, 10)})`).join("\n")}`
-    : "(채널 현황 조회 실패)";
-  const msg = await anthropic.messages.create({
-    model: "claude-opus-4-8", max_tokens: 4096, system: SYSTEM,
-    // 웹 검색으로 similar_hit·crossover_hit의 실제 영상·출처를 근거 있게 — 지어내기 방지(절대원칙 3)
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }],
-    messages: [{ role: "user", content: `[채널 프로필]\n니치: ${p.niche}\n톤: ${p.tone}\n목적: ${p.purpose}\n지향: ${p.aspiration || "(없음)"}\n\n[내 채널 현황 — 오늘 새로 읽음]\n${channelBlock}\n\n[니치 트렌드 데이터]\n${JSON.stringify(trends)}${benchmarkBlock}` }],
+async function postJSON(path, body) {
+  const r = await fetch(`${SITE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
-  return parseJson(msg.content.filter((b) => b.type === "text").map((b) => b.text).join("\n"));
+  return r.json().catch(() => null);
 }
-async function sendEmail(to, b) {
-  const trends = (b.trends || []).map((x) => `· ${x.title}`).join("<br>");
-  const html = `<div style="font-family:sans-serif;max-width:520px">
-    <h2 style="color:#4B43D6">오늘의 브리핑</h2>
-    ${b.channel_note ? `<p style="color:#6B7180">${b.channel_note}</p>` : ""}
-    <p><b>오늘 뜨는 흐름</b><br>${trends}</p>
-    <p><b>오늘 만들 영상</b><br>${b.today_pick?.title || ""}<br><span style="color:#666">${b.today_pick?.angle || ""}</span></p>
-    <p><b>이번 주 방향</b><br>${b.weekly || ""}</p>
-    <p><a href="${process.env.SITE_URL}/today" style="color:#4B43D6">앱에서 전체 보기 →</a></p>
+
+// 라이브 brief 엔진 호출 → 통합 브리핑 한 덩이
+async function buildBrief(profile) {
+  if (!SITE) throw new Error("SITE_URL 미설정");
+  const base = await postJSON("/api/channel", { channelUrl: profile.channel_url });
+  if (!base?.channel) return null;
+  const started = await postJSON("/api/brief/start", {
+    channel: base.channel,
+    videos: base.videos || [],
+    niche: profile.niche,
+    tone: profile.tone,
+    purpose: profile.purpose,
+    aspiration: profile.aspiration,
+  });
+  if (!started?.id) return null;
+
+  const deadline = Date.now() + 4 * 60 * 1000; // 최대 4분 폴링
+  while (Date.now() < deadline) {
+    await sleep(4000);
+    const j = await (await fetch(`${SITE}/api/analyze/status?id=${started.id}`)).json().catch(() => null);
+    if (!j) continue;
+    if (j.status === "done") return j.analysis;
+    if (j.status === "error") throw new Error(j.error || "브리핑 생성 실패");
+  }
+  throw new Error("브리핑 시간 초과");
+}
+
+// 통합 브리핑 → 이메일 HTML (오프화이트/인디고, 미니멀)
+function emailHtml(b) {
+  const ink = "#15171C", sub = "#6B7180", accent = "#4B43D6", line = "#E7E9EE";
+  const sec = (title, inner) =>
+    inner
+      ? `<tr><td style="padding:18px 0 0"><div style="font:600 11px/1.4 -apple-system,sans-serif;letter-spacing:.12em;color:${sub};text-transform:uppercase">${title}</div>${inner}</td></tr>`
+      : "";
+
+  const landscape = b.landscape
+    ? `<p style="margin:6px 0 0;color:${ink};font:400 14px/1.6 -apple-system,sans-serif">${esc(b.landscape)}</p>`
+    : "";
+  const position = b.position
+    ? `<p style="margin:6px 0 0;color:${ink};font:400 14px/1.6 -apple-system,sans-serif">${esc(b.position)}</p>`
+    : "";
+  const peers = (b.cohort || [])
+    .slice(0, 4)
+    .map(
+      (c) =>
+        `<div style="margin:8px 0;padding-left:10px;border-left:3px solid ${accent}">
+          <a href="${esc(c.url)}" style="color:${ink};font:700 14px/1.4 -apple-system,sans-serif;text-decoration:none">${esc(c.name)} ↗</a>
+          <div style="color:${sub};font:400 12px/1.5 ui-monospace,monospace">평균조회 ${Number(c.avgViews || 0).toLocaleString()} · 최근60일 ${c.recent60 || 0}편</div>
+          ${c.apply ? `<div style="color:${accent};font:600 13px/1.5 -apple-system,sans-serif;margin-top:3px">내 채널엔 · ${esc(c.apply)}</div>` : ""}
+        </div>`
+    )
+    .join("");
+  const diagnosis = (b.diagnosis || [])
+    .slice(0, 3)
+    .map(
+      (d) =>
+        `<div style="margin:7px 0"><div style="color:${ink};font:600 14px/1.5 -apple-system,sans-serif">${esc(d.point)}</div>${d.evidence ? `<div style="color:${sub};font:400 12px/1.5 ui-monospace,monospace">근거 · ${esc(d.evidence)}</div>` : ""}</div>`
+    )
+    .join("");
+  const ideas = (b.ideas || [])
+    .slice(0, 3)
+    .map(
+      (i) =>
+        `<div style="margin:10px 0;padding:12px 14px;border:1px solid ${line};border-left:3px solid ${accent};border-radius:10px">
+          <div style="color:${ink};font:700 15px/1.4 -apple-system,sans-serif">${esc(i.title)}</div>
+          ${i.hook ? `<div style="color:${accent};font:600 12px/1.5 ui-monospace,monospace;margin-top:5px">첫 3초 · ${esc(i.hook)}</div>` : ""}
+          ${i.why ? `<div style="color:${sub};font:400 13px/1.6 -apple-system,sans-serif;margin-top:5px">${esc(i.why)}</div>` : ""}
+        </div>`
+    )
+    .join("");
+  const strategy = (b.strategy || [])
+    .slice(0, 3)
+    .map((s) => `<li style="margin:4px 0;color:${ink};font:400 14px/1.6 -apple-system,sans-serif">${esc(s.point)}</li>`)
+    .join("");
+  const todo = (b.todo || [])
+    .map((t) => `<li style="margin:4px 0;color:${ink};font:400 14px/1.6 -apple-system,sans-serif">${esc(t)}</li>`)
+    .join("");
+
+  return `<div style="background:#F4F5F7;padding:24px 0">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border:1px solid ${line};border-radius:16px;padding:26px 28px">
+        <tr><td>
+          <div style="font:800 22px/1.2 -apple-system,sans-serif;color:${ink};letter-spacing:-.02em">오늘의 브리핑</div>
+          <div style="font:400 13px/1.5 -apple-system,sans-serif;color:${sub};margin-top:4px">바깥부터 보고, 내 위치와 만들 영상까지</div>
+        </td></tr>
+        ${sec("지금 판세", landscape)}
+        ${sec("비슷한 채널은 지금", peers)}
+        ${sec("내 위치", position)}
+        ${sec("개선점", diagnosis)}
+        ${sec("이번 주 만들 영상", ideas)}
+        ${sec("전략", strategy ? `<ul style="margin:6px 0 0;padding-left:18px">${strategy}</ul>` : "")}
+        ${sec("오늘부터 할 일", todo ? `<ul style="margin:6px 0 0;padding-left:18px">${todo}</ul>` : "")}
+        <tr><td style="padding:22px 0 0">
+          <a href="${SITE}/today" style="display:inline-block;background:${accent};color:#fff;font:600 14px -apple-system,sans-serif;text-decoration:none;padding:11px 20px;border-radius:10px">앱에서 전체 보기 →</a>
+        </td></tr>
+      </table>
+    </td></tr></table>
   </div>`;
-  if (!process.env.RESEND_API_KEY) { console.warn("email skip: RESEND_API_KEY 없음"); return; }
+}
+
+async function sendEmail(to, b) {
+  if (!process.env.RESEND_API_KEY) return console.warn("email skip: RESEND_API_KEY 없음");
   const res = await fetch("https://api.resend.com/emails", {
-    method: "POST", headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: "나비 <today@theamov.com>", to, subject: "☀️ 오늘의 나비 브리핑", html }),
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: "나비 <today@theamov.com>", to, subject: "오늘의 나비 브리핑", html: emailHtml(b) }),
   });
   if (!res.ok) console.error("email fail:", res.status, await res.text().catch(() => ""));
 }
+
 async function sendPush(userId, b) {
   const { data: subs } = await sb.from("push_subscriptions").select("*").eq("user_id", userId);
-  const payload = JSON.stringify({ title: "오늘의 브리핑이 도착했어요", body: b.today_pick?.title || "오늘 만들 영상 추천이 준비됐어요", url: `${process.env.SITE_URL}/today` });
+  const payload = JSON.stringify({
+    title: "오늘의 브리핑이 도착했어요",
+    body: b.ideas?.[0]?.title || "이번 주 만들 영상과 전략이 준비됐어요",
+    url: `${SITE}/today`,
+  });
   for (const row of subs || []) {
-    try { await webpush.sendNotification(row.subscription, payload); }
-    catch (e) { if (e.statusCode === 404 || e.statusCode === 410) await sb.from("push_subscriptions").delete().eq("id", row.id); }
+    try {
+      await webpush.sendNotification(row.subscription, payload);
+    } catch (e) {
+      if (e.statusCode === 404 || e.statusCode === 410) await sb.from("push_subscriptions").delete().eq("id", row.id);
+    }
   }
 }
 
 async function main() {
   const todayKST = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
-  const { data: users } = await sb.from("profiles").select("*").eq("briefing_enabled", true).not("channel_url", "is", null);
+
+  const { data: users } = await sb
+    .from("profiles")
+    .select("*")
+    .eq("briefing_enabled", true)
+    .not("channel_url", "is", null);
   for (const p of users || []) {
     try {
-      const cs = await resolveChannel(p.channel_url);          // 매일 채널 새로 읽기
-      const recent = cs ? await getRecentUploads(cs.uploads) : [];
-      const trends = await getTrends(p.niche || cs?.title || "");
-      const benchmarkBlock = await getBenchmarkBlock(p.benchmark_url).catch(() => "");
-      const b = await buildBriefing(p, cs, recent, trends, benchmarkBlock);
+      const b = await buildBrief(p);
       if (!b) continue;
       await sb.from("briefings").upsert({ user_id: p.id, for_date: todayKST, content: b }, { onConflict: "user_id,for_date" });
       if (p.email_enabled && p.email) await sendEmail(p.email, b);
       if (p.push_enabled) await sendPush(p.id, b);
       console.log("sent:", p.id);
-    } catch (e) { console.error("failed:", p.id, e?.message || e); }
+    } catch (e) {
+      console.error("failed:", p.id, e?.message || e);
+    }
   }
 
-  // 비로그인 매거진 구독자 — 이메일만 발송
+  // 비로그인 매거진 구독자 — 이메일만
   const { data: subs } = await sb.from("subscribers").select("*");
   for (const s of subs || []) {
     try {
-      const cs = await resolveChannel(s.channel_url);
-      const recent = cs ? await getRecentUploads(cs.uploads) : [];
-      const trends = await getTrends(s.niche || cs?.title || "");
-      const benchmarkBlock = await getBenchmarkBlock(s.benchmark_url).catch(() => "");
-      const b = await buildBriefing({ niche: s.niche || cs?.title || "", tone: "", purpose: "", aspiration: "" }, cs, recent, trends, benchmarkBlock);
+      const b = await buildBrief({ channel_url: s.channel_url, niche: s.niche });
       if (!b) continue;
       await sendEmail(s.email, b);
       console.log("sent(sub):", s.email);
-    } catch (e) { console.error("failed(sub):", s.email, e?.message || e); }
+    } catch (e) {
+      console.error("failed(sub):", s.email, e?.message || e);
+    }
   }
 }
-main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+main().then(() => process.exit(0)).catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
