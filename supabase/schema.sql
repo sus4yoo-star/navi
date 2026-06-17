@@ -50,6 +50,20 @@ create table public.subscribers (
   created_at    timestamptz default now()
 );
 
+-- 5) 영상 깊은 분석 작업 (긴 영상은 백그라운드로 처리 → 결과를 여기 저장 후 폴링)
+create table public.analyses (
+  id          uuid primary key default gen_random_uuid(),
+  status      text not null default 'pending',  -- pending | done | error
+  video_url   text,
+  channel_url text,
+  format      text,
+  video       jsonb,
+  channel     jsonb,
+  result      jsonb,
+  error       text,
+  created_at  timestamptz default now()
+);
+
 -- ============================================================
 -- Row Level Security — 각자 자기 것만
 -- ============================================================
@@ -61,6 +75,13 @@ alter table public.subscribers         enable row level security;
 -- 누구나 구독 신청(insert)만 가능. 읽기/수정은 service role(크론)만.
 create policy "anyone can subscribe" on public.subscribers
   for insert with check (true);
+
+alter table public.analyses enable row level security;
+-- 분석 작업: 누구나 생성(insert)·결과 조회(select by id). 갱신은 service role(백그라운드)만.
+create policy "anyone create analysis" on public.analyses
+  for insert with check (true);
+create policy "anyone read analysis" on public.analyses
+  for select using (true);
 
 create policy "own profile"  on public.profiles
   for all using (auth.uid() = id) with check (auth.uid() = id);

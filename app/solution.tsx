@@ -3,7 +3,7 @@
 // app/solution.tsx — 채널 자동 솔루션 (홈 체험 · /today 공용)
 // channelUrl(+프로필)만 받으면 /api/channel로 최근 10개를 진단·처방. 영상별 깊은 분석은 "자세히" 탭.
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { C } from "@/lib/ui";
 
 // 서버가 (타임아웃 등으로) HTML 오류 페이지를 줘도 안 깨지게 안전 파싱
@@ -79,6 +79,10 @@ export default function Solution({
   const [sol, setSol] = useState<Sol | null>(null);
 
   const [deepId, setDeepId] = useState<string | null>(null);
+  const deepIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    deepIdRef.current = deepId;
+  }, [deepId]);
   const [deepLoading, setDeepLoading] = useState(false);
   const [deepErr, setDeepErr] = useState("");
   const [deep, setDeep] = useState<Analysis | null>(null);
@@ -152,18 +156,43 @@ export default function Solution({
     setDeep(null);
     setDeepErr("");
     setDeepLoading(true);
+    const videoUrl = `https://www.youtube.com/watch?v=${v.id}`;
     try {
-      const j = await callJson("/api/analyze", {
-        videoUrl: `https://www.youtube.com/watch?v=${v.id}`,
-        channelUrl,
-        format: v.format,
-      });
-      setDeep(j.analysis || null);
+      if (v.format === "쇼츠") {
+        // 쇼츠는 빠르므로 동기 분석(즉시 결과)
+        const j = await callJson("/api/analyze", { videoUrl, channelUrl, format: v.format });
+        setDeep(j.analysis || null);
+      } else {
+        // 롱폼은 길어서 백그라운드로 돌리고 결과를 폴링(타임아웃 방어)
+        const { id } = await callJson("/api/analyze/start", {
+          videoUrl,
+          channelUrl,
+          format: v.format,
+        });
+        const analysis = await pollAnalysis(id, v.id);
+        if (analysis) setDeep(analysis);
+      }
     } catch (e: any) {
       setDeepErr(e.message);
     } finally {
       setDeepLoading(false);
     }
+  }
+
+  // 백그라운드 작업이 끝날 때까지 상태를 주기적으로 확인(최대 약 5분)
+  async function pollAnalysis(id: string, videoId: string): Promise<Analysis | null> {
+    const started = Date.now();
+    while (Date.now() - started < 5 * 60 * 1000) {
+      await new Promise((r) => setTimeout(r, 3500));
+      // 사용자가 그새 닫았거나 다른 영상을 열면 폴링 중단
+      if (deepIdRef.current !== videoId) return null;
+      const r = await fetch(`/api/analyze/status?id=${id}`);
+      const j = await r.json().catch(() => null);
+      if (!j) continue;
+      if (j.status === "done") return j.analysis || null;
+      if (j.status === "error") throw new Error(j.error || "영상을 분석하지 못했어요.");
+    }
+    throw new Error("분석이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.");
   }
 
   return (
@@ -238,6 +267,7 @@ export default function Solution({
                   {deepLoading && (
                     <div className="nv-running" style={{ margin: "6px 0" }}>
                       <span className="nv-pulse" /> 나비가 이 영상을 직접 보는 중
+                      {v.format !== "쇼츠" && " — 긴 영상은 1~2분 걸려요"}
                     </div>
                   )}
                   {deepErr && <p className="nv-err">{deepErr}</p>}
