@@ -58,7 +58,7 @@ async function buildBriefing(p, cs, recent, trends) {
     ? `채널: ${cs.title} · 구독자 ${cs.subs.toLocaleString()} · 영상 ${cs.videoCount}개\n최근 업로드:\n${recent.map((r) => `- ${r.title} (${r.views.toLocaleString()}회, ${r.date.slice(0, 10)})`).join("\n")}`
     : "(채널 현황 조회 실패)";
   const msg = await anthropic.messages.create({
-    model: "claude-sonnet-4-6", max_tokens: 4096, system: SYSTEM,
+    model: "claude-opus-4-8", max_tokens: 4096, system: SYSTEM,
     // 웹 검색으로 similar_hit·crossover_hit의 실제 영상·출처를 근거 있게 — 지어내기 방지(절대원칙 3)
     tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }],
     messages: [{ role: "user", content: `[채널 프로필]\n니치: ${p.niche}\n톤: ${p.tone}\n목적: ${p.purpose}\n지향: ${p.aspiration || "(없음)"}\n\n[내 채널 현황 — 오늘 새로 읽음]\n${channelBlock}\n\n[니치 트렌드 데이터]\n${JSON.stringify(trends)}` }],

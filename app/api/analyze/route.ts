@@ -1,27 +1,28 @@
 // app/api/analyze/route.ts  (Next.js App Router)
 //
-// 설치: npm i youtube-transcript @anthropic-ai/sdk
-// 환경변수(.env.local):
-//   ANTHROPIC_API_KEY=sk-ant-...
-//   YOUTUBE_API_KEY=AIza...        // Google Cloud → YouTube Data API v3 키
+// 흐름: Gemini가 유튜브 영상을 직접 보고(음성+화면) 받아 적음 → Claude(Opus)가 PD 분석.
+// 자막에 의존하지 않음. 한국 크리에이터 영상 대부분 자막이 없어서 영상 자체를 본다.
 //
-// 프론트는 그냥 이렇게 부르면 끝:
-//   const res = await fetch("/api/analyze", {
-//     method: "POST",
-//     headers: { "Content-Type": "application/json" },
-//     body: JSON.stringify({ videoUrl, channelUrl }),
-//   });
-//   const data = await res.json();
+// 환경변수(.env.local / Netlify):
+//   ANTHROPIC_API_KEY=sk-ant-...
+//   YOUTUBE_API_KEY=AIza...     // YouTube Data API v3 (조회수·구독자 실측)
+//   GEMINI_API_KEY=AIza...      // Google AI Studio (영상 시청)
+//   GEMINI_MODEL=gemini-2.0-flash  // (선택) 기본값 override
+//
+// 프론트:
+//   fetch("/api/analyze", { method:"POST", body: JSON.stringify({ videoUrl, channelUrl }) })
 
 import { NextRequest, NextResponse } from "next/server";
-import { YoutubeTranscript } from "youtube-transcript";
 import Anthropic from "@anthropic-ai/sdk";
 
-export const runtime = "nodejs";        // Edge 아님(자막 라이브러리가 node 필요)
-export const maxDuration = 60;
+export const runtime = "nodejs";
+export const maxDuration = 60; // 영상 시청은 시간이 걸림 (Netlify는 함수 타임아웃 상향 필요)
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
-const YT_KEY = process.env.YOUTUBE_API_KEY!;
+const YT_KEY = process.env.YOUTUBE_API_KEY;
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const CLAUDE_MODEL = "claude-opus-4-8";
 
 // ---------- URL 파싱 ----------
 function parseVideoId(url: string): string | null {
@@ -46,23 +47,59 @@ function parseChannel(url: string) {
   }
 }
 
-// ---------- 1) 자막 ----------
-// 1순위: 유튜브 자막 트랙(무료·빠름, 단 비공식 엔드포인트라 ToS 회색·가끔 깨짐)
-//   - 자기 영상만 다룰 거면 OAuth + captions.download 가 합법·안정적
-// 2순위: 자막 없으면 Whisper 폴백 (아래 transcribeWithWhisper 참고)
-async function getTranscript(videoId: string): Promise<string | null> {
-  try {
-    const ko = await YoutubeTranscript.fetchTranscript(videoId, { lang: "ko" }).catch(() => null);
-    const items = ko ?? (await YoutubeTranscript.fetchTranscript(videoId));
-    const text = items.map((i) => i.text).join(" ").trim();
-    return text.length > 30 ? text : null;
-  } catch {
-    return null; // 자막 트랙 없음 → 호출부에서 Whisper 폴백
+// ---------- 1) Gemini: 영상 직접 시청 (음성 + 화면) ----------
+const GEMINI_PROMPT = `이 유튜브 영상을 음성과 화면을 모두 보고 분석해 아래 JSON으로만 답하세요. 코드펜스·다른 텍스트 금지.
+실제로 들리고 보이는 것만 적고 추측하지 마세요.
+{
+ "transcript": "말한 내용을 시간 흐름대로 한국어로 최대한 그대로. 타임스탬프가 보이면 [mm:ss] 형식으로.",
+ "on_screen_text": "화면에 뜬 자막·제목·중요 텍스트",
+ "visual_notes": "장면 전환, 인물, 배경, 분위기, 편집 스타일 등 화면에서 읽히는 것",
+ "summary": "이 영상이 무엇을 다루는지 한 줄"
+}`;
+
+async function watchVideo(videoUrl: string) {
+  if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY가 설정되지 않았어요.");
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { file_data: { file_uri: videoUrl } },
+              { text: GEMINI_PROMPT },
+            ],
+          },
+        ],
+        generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
+      }),
+    }
+  );
+  const j = await r.json();
+  if (!r.ok) {
+    const msg = j?.error?.message || `Gemini ${r.status}`;
+    throw new Error(msg);
   }
+  const text =
+    j.candidates?.[0]?.content?.parts
+      ?.map((p: any) => p.text)
+      .filter(Boolean)
+      .join("\n") || "";
+  const parsed = extractJson(text);
+  if (!parsed) throw new Error("영상을 읽지 못했어요. 다시 시도해 주세요.");
+  return parsed as {
+    transcript?: string;
+    on_screen_text?: string;
+    visual_notes?: string;
+    summary?: string;
+  };
 }
 
-// ---------- 2) 통계 (YouTube Data API, 공개치라 OAuth 불필요) ----------
+// ---------- 2) 통계 (YouTube Data API, 실측) ----------
 async function getVideoStats(videoId: string) {
+  if (!YT_KEY) return null;
   const r = await fetch(
     `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoId}&key=${YT_KEY}`
   );
@@ -79,6 +116,7 @@ async function getVideoStats(videoId: string) {
 }
 
 async function getChannelStats(channelUrl: string) {
+  if (!YT_KEY) return null;
   const ch = parseChannel(channelUrl);
   if (!ch) return null;
   const q =
@@ -99,18 +137,19 @@ async function getChannelStats(channelUrl: string) {
   };
 }
 
-// ---------- 3) Claude 분석 ----------
-const SYSTEM = `당신은 '유PD'입니다. 한국 1인 유튜브 크리에이터를 돕는 베테랑 PD이자 전략가입니다.
-영상 자막과 채널 통계를 분석해 쇼츠 컷, 패키징(제목·썸네일·설명·태그), 성장 전략을 제안하세요.
+// ---------- 3) Claude(Opus) PD 분석 ----------
+const SYSTEM = `당신은 '나비'입니다. 한국 1인 유튜브 크리에이터를 돕는 베테랑 PD이자 전략가입니다.
+영상 내용(받아적은 말 + 화면 묘사)과 채널 통계를 분석해 쇼츠 컷, 패키징(제목·썸네일·설명·태그), 성장 전략을 제안하세요.
 구체적으로 쓰고 클리셰·과장·이모지를 피하세요. 아래 키를 가진 JSON 하나만 출력하고 그 외 텍스트·코드펜스 금지.
 {"shorts":[{"cue":"CUE 01","hook":"...","reason":"...","title":"..."}],"titles":["..."],"thumbnails":[{"concept":"...","text":"..."}],"description":"...","tags":["..."],"strategy":[{"point":"...","why":"..."}],"next_actions":["..."]}`;
 
 function extractJson(text: string) {
-  const s = text.indexOf("{");
-  const e = text.lastIndexOf("}");
+  const t = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+  const s = t.indexOf("{");
+  const e = t.lastIndexOf("}");
   if (s < 0 || e <= s) return null;
   try {
-    return JSON.parse(text.slice(s, e + 1));
+    return JSON.parse(t.slice(s, e + 1));
   } catch {
     return null;
   }
@@ -124,35 +163,51 @@ export async function POST(req: NextRequest) {
   if (!videoId)
     return NextResponse.json({ error: "유튜브 영상 URL을 확인해 주세요." }, { status: 400 });
 
-  const [transcript, video, channel] = await Promise.all([
-    getTranscript(videoId),
-    getVideoStats(videoId),
-    channelUrl ? getChannelStats(channelUrl) : Promise.resolve(null),
-  ]);
-
-  if (!transcript) {
-    // 자막이 없는 영상 → Whisper 폴백 자리 (transcribeWithWhisper 구현 후 연결)
+  // 영상 시청 + 통계 동시
+  let seen: Awaited<ReturnType<typeof watchVideo>>;
+  let video: Awaited<ReturnType<typeof getVideoStats>>;
+  let channel: Awaited<ReturnType<typeof getChannelStats>>;
+  try {
+    [seen, video, channel] = await Promise.all([
+      watchVideo(videoUrl),
+      getVideoStats(videoId),
+      channelUrl ? getChannelStats(channelUrl) : Promise.resolve(null),
+    ]);
+  } catch (e: any) {
+    console.error("analyze: 영상 시청 실패", e?.message || e);
     return NextResponse.json(
-      { error: "자막이 없는 영상이에요. Whisper 전사가 필요합니다.", needsWhisper: true },
-      { status: 422 }
+      { error: e?.message || "영상을 분석하지 못했어요. 잠시 후 다시 시도해 주세요." },
+      { status: 502 }
     );
   }
 
   const ctx = [
-    channel && `채널: ${channel.name} · 구독자 ${channel.subscribers.toLocaleString()}명 · 영상 ${channel.videoCount}개`,
-    video && `이 영상: "${video.title}" · 조회 ${video.views.toLocaleString()} · 좋아요 ${video.likes.toLocaleString()} · 댓글 ${video.comments.toLocaleString()}`,
+    channel &&
+      `채널: ${channel.name} · 구독자 ${channel.subscribers.toLocaleString()}명 · 영상 ${channel.videoCount}개`,
+    video &&
+      `이 영상: "${video.title}" · 조회 ${video.views.toLocaleString()} · 좋아요 ${video.likes.toLocaleString()} · 댓글 ${video.comments.toLocaleString()}`,
   ]
     .filter(Boolean)
     .join("\n");
 
+  const videoBlock = [
+    seen.summary && `[영상 요약] ${seen.summary}`,
+    seen.transcript && `[말한 내용]\n${seen.transcript}`,
+    seen.on_screen_text && `[화면 텍스트]\n${seen.on_screen_text}`,
+    seen.visual_notes && `[화면 묘사]\n${seen.visual_notes}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, 14000);
+
   const msg = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
+    model: CLAUDE_MODEL,
     max_tokens: 4096,
     system: SYSTEM,
     messages: [
       {
         role: "user",
-        content: `[채널/영상 통계]\n${ctx || "(없음)"}\n\n[영상 자막]\n${transcript.slice(0, 12000)}`,
+        content: `[채널/영상 통계]\n${ctx || "(없음)"}\n\n${videoBlock}`,
       },
     ],
   });
@@ -169,10 +224,3 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ video, channel, analysis: json });
 }
-
-// ---------- Whisper 폴백 (자막 없는 영상용 스케치) ----------
-// 서버에 yt-dlp 설치 후:
-//   1) yt-dlp -x --audio-format mp3 -o /tmp/%(id)s.mp3 <videoUrl>
-//   2) 오디오를 OpenAI Whisper(또는 자체 호스팅 whisper.cpp)에 보내 전사
-//   3) 반환 텍스트를 위 SYSTEM 프롬프트에 그대로 투입
-// 무료 자막 트랙이 있는 영상이 대부분이라, 폴백은 나중에 붙여도 됩니다.

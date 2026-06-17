@@ -315,7 +315,7 @@ export default function Home() {
                     style={{ marginBottom: 7 }}
                   />
                   <p className="nv-mono nv-hint" style={{ margin: "0 0 15px" }}>
-                    * 자막이 있는 영상이면 URL만으로 자동 분석돼요.
+                    * URL만 넣으면 나비가 영상의 음성·화면을 직접 보고 분석해요. 자막 없어도 됩니다.
                   </p>
                   <button
                     className="nv-btn"
