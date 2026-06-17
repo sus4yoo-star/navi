@@ -9,7 +9,9 @@
 //          SUPABASE_URL(또는 NEXT_PUBLIC_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY
 
 import { createClient } from "@supabase/supabase-js";
+import Anthropic from "@anthropic-ai/sdk";
 
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const YT_KEY = process.env.YOUTUBE_API_KEY;
@@ -143,6 +145,45 @@ async function analyzeVideo(videoUrl: string, statsCtx: string, format: string) 
   return parsed;
 }
 
+// 뽑힌 쇼츠 후보를 '텍스트만' 따로 비교해 센 순서로 재정렬한다.
+// (영상을 보며 나온 순서 = 타임코드순이 되는 걸 피하려고, 후보끼리 실제 비교)
+async function rankShorts(shorts: any[]) {
+  if (!Array.isArray(shorts) || shorts.length < 2) return shorts;
+  try {
+    const list = shorts
+      .map(
+        (s, i) =>
+          `[${i}] 훅:"${s.hook || ""}" | 대사:"${(s.transcript || "").slice(0, 120)}" | 제목:"${s.title || ""}"`
+      )
+      .join("\n");
+    const msg = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 120,
+      system:
+        "다음은 한 영상에서 쇼츠로 뽑을 후보들이다. 짧은 폼으로 단독 게시했을 때 '첫 3초 훅·감정·호기심·독립적 완결성'이 강한 순서로 번호만 재정렬하라. 영상 시간 순서는 무시. JSON 배열 하나만 출력(예: [2,0,1]). 그 외 텍스트 금지.",
+      messages: [{ role: "user", content: list }],
+    });
+    const raw = msg.content.filter((b) => b.type === "text").map((b: any) => b.text).join("");
+    const m = raw.match(/\[[\d,\s]*\]/);
+    if (!m) return shorts;
+    const order = JSON.parse(m[0]) as number[];
+    const seen = new Set<number>();
+    const out: any[] = [];
+    for (const i of order) {
+      if (typeof i === "number" && shorts[i] && !seen.has(i)) {
+        out.push(shorts[i]);
+        seen.add(i);
+      }
+    }
+    shorts.forEach((s, i) => {
+      if (!seen.has(i)) out.push(s);
+    });
+    return out;
+  } catch {
+    return shorts; // 재정렬 실패해도 분석 결과는 그대로 살린다
+  }
+}
+
 export default async (req: Request) => {
   let id: string | undefined;
   try {
@@ -167,7 +208,11 @@ export default async (req: Request) => {
 
     const fmt = format || "쇼츠";
     const analysis = await analyzeVideo(videoUrl, statsCtx, fmt);
-    if (fmt === "쇼츠" && analysis) analysis.shorts = [];
+    if (fmt === "쇼츠" && analysis) {
+      analysis.shorts = [];
+    } else if (analysis?.shorts?.length > 1) {
+      analysis.shorts = await rankShorts(analysis.shorts); // 센 것부터 위로
+    }
     await sb
       .from("analyses")
       .update({ status: "done", video, channel, result: analysis })

@@ -528,16 +528,9 @@ export default function Solution({
   );
 }
 
-// "1:39-2:07" / "0:50" 같은 큐의 시작 초를 뽑아 영상 시간 순으로 정렬
-function cueStart(cue?: string) {
-  if (!cue) return Number.MAX_SAFE_INTEGER;
-  const p = cue.split("-")[0].trim().split(":").map(Number);
-  if (p.some(isNaN)) return Number.MAX_SAFE_INTEGER;
-  return p.reduce((acc, n) => acc * 60 + n, 0);
-}
-
 function Deep({ a }: { a: Analysis }) {
-  const shorts = (a.shorts || []).slice().sort((x, y) => cueStart(x.cue) - cueStart(y.cue));
+  // 서버가 '센 것부터' 정렬해 보내므로 그 순서를 그대로 유지한다.
+  const shorts = a.shorts || [];
   return (
     <div style={{ marginTop: 6 }}>
       {a.summary && (
@@ -573,7 +566,7 @@ function Deep({ a }: { a: Analysis }) {
       )}
       {shorts.length > 0 && (
         <div className="nv-deep-block">
-          <p className="nv-h">여기서 쇼츠로 뽑으면 좋아요</p>
+          <p className="nv-h">여기서 쇼츠로 뽑으면 좋아요 — 센 것부터</p>
           {shorts.map((s, i) => {
             const pkg = [
               s.title && `제목: ${s.title}`,
