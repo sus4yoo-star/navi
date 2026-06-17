@@ -81,6 +81,7 @@ async function recentActivity(uploads: string) {
   const vids = (vj.items || []).map((x: any) => ({
     id: x.id as string,
     title: x.snippet.title as string,
+    thumb: (x.snippet.thumbnails?.medium?.url || x.snippet.thumbnails?.high?.url) as string,
     views: Number(x.statistics?.viewCount ?? 0),
     published: x.snippet.publishedAt as string,
     format: isoToSec(x.contentDetails?.duration || "") <= 60 ? "쇼츠" : "롱폼",
@@ -194,7 +195,12 @@ export default async (req: Request) => {
       shortsPct: c.shortsPct,
       url: `https://www.youtube.com/channel/${c.id}`,
       top: c.top
-        ? { title: c.top.title, views: c.top.views, url: `https://www.youtube.com/watch?v=${c.top.id}` }
+        ? {
+            title: c.top.title,
+            views: c.top.views,
+            thumb: c.top.thumb,
+            url: `https://www.youtube.com/watch?v=${c.top.id}`,
+          }
         : null,
     }));
 

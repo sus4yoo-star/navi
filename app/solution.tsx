@@ -264,7 +264,7 @@ type CohortCard = {
   avgViews: number;
   shortsPct: number;
   url?: string;
-  top?: { title: string; views: number; url?: string } | null;
+  top?: { title: string; views: number; thumb?: string; url?: string } | null;
   analysis?: string;
   apply?: string;
 };
@@ -509,6 +509,29 @@ export default function Solution({
         </div>
       )}
 
+      {channel && (
+        <div className="nv-card">
+          <span className="nv-mono nv-eyebrow">채널 현황</span>
+          <div className="nv-mono nv-data" style={{ margin: "8px 0 0" }}>
+            {channel.name} · 구독자 {channel.subscribers.toLocaleString()} · 영상{" "}
+            {channel.videoCount.toLocaleString()}개
+          </div>
+          {(() => {
+            const rows = channelStats(videos, channel.subscribers);
+            return rows.length ? (
+              <div className="nv-stats">
+                {rows.map((r) => (
+                  <div className="nv-stat" key={r.label}>
+                    <span className="nv-mono nv-stat-l">{r.label}</span>
+                    <span className="nv-stat-v">{r.value}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null;
+          })()}
+        </div>
+      )}
+
       {/* 중심축 — 니치 레이더: 비슷한 결의 지금 활발한 채널들을 한눈에 + 영감 */}
       {(briefLoading || brief || briefErr) && (
         <div className="nv-card nv-radar">
@@ -565,6 +588,17 @@ export default function Solution({
               <div className="nv-coscroll">
                 {brief.cohort.map((c, i) => (
                   <div className="nv-cocard" key={i}>
+                    {c.top?.thumb &&
+                      (c.top.url ? (
+                        <a href={c.top.url} target="_blank" rel="noopener noreferrer" className="nv-cothumb-wrap">
+                          <img className="nv-cothumb" src={c.top.thumb} alt="" loading="lazy" />
+                          <span className="nv-cothumb-play">▶</span>
+                        </a>
+                      ) : (
+                        <span className="nv-cothumb-wrap">
+                          <img className="nv-cothumb" src={c.top.thumb} alt="" loading="lazy" />
+                        </span>
+                      ))}
                     <div className="nv-cocard-head">
                       {c.thumb && <img className="nv-cocard-thumb" src={c.thumb} alt="" loading="lazy" />}
                       {c.url ? (
@@ -678,29 +712,6 @@ export default function Solution({
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {channel && (
-        <div className="nv-card">
-          <span className="nv-mono nv-eyebrow">채널 현황</span>
-          <div className="nv-mono nv-data" style={{ margin: "8px 0 0" }}>
-            {channel.name} · 구독자 {channel.subscribers.toLocaleString()} · 영상{" "}
-            {channel.videoCount.toLocaleString()}개
-          </div>
-          {(() => {
-            const rows = channelStats(videos, channel.subscribers);
-            return rows.length ? (
-              <div className="nv-stats">
-                {rows.map((r) => (
-                  <div className="nv-stat" key={r.label}>
-                    <span className="nv-mono nv-stat-l">{r.label}</span>
-                    <span className="nv-stat-v">{r.value}</span>
-                  </div>
-                ))}
-              </div>
-            ) : null;
-          })()}
         </div>
       )}
 
@@ -1263,6 +1274,9 @@ a.nv-src{text-decoration:none}
 .nv-coscroll{display:flex;gap:12px;overflow-x:auto;margin:9px -22px 0;padding:2px 22px 10px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
 .nv-coscroll::-webkit-scrollbar{height:0}
 .nv-cocard{flex:0 0 84%;max-width:300px;scroll-snap-align:start;border:1px solid ${C.line};border-top:3px solid ${C.live};border-radius:13px;padding:15px 16px;background:#fff;box-shadow:0 2px 10px -4px rgba(20,23,28,.12)}
+.nv-cothumb-wrap{position:relative;display:block;margin:-2px 0 12px;border-radius:9px;overflow:hidden}
+.nv-cothumb{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:${C.canvas}}
+.nv-cothumb-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;background:rgba(20,23,28,.62);color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;padding-left:3px}
 .nv-cocard-head{display:flex;align-items:center;gap:9px;margin-bottom:9px}
 .nv-cocard-thumb{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none;background:${C.canvas}}
 .nv-cocard-name{font-size:15px;font-weight:700;color:${C.ink};text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
