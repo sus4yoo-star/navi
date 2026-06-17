@@ -226,12 +226,19 @@ export default async (req: Request) => {
       .slice(0, 5); // search는 호출당 100유닛 — 쿼터 절약 위해 최대 5개(해시태그·분야 우선)
 
     // 내 채널 키워드 집합(해시태그 + 제목어 + 분야) — 후보와의 주제 겹침 점수용
+    const STOP = new Set([
+      "영상", "오늘", "진짜", "이거", "그냥", "정말", "자막", "구독", "좋아요", "브이로그",
+      "shorts", "쇼츠", "youtube", "유튜브", "vlog", "the",
+    ]);
     const myKeywords = new Set<string>();
-    for (const t of topTags) myKeywords.add(t.toLowerCase());
-    for (const w of (niche || "").split(/[\s·,]+/)) if (w.length >= 2) myKeywords.add(w.toLowerCase());
+    const addKw = (w: string) => {
+      const k = w.toLowerCase();
+      if (k.length >= 2 && !STOP.has(k)) myKeywords.add(k);
+    };
+    for (const t of topTags) addKw(t);
+    for (const w of (niche || "").split(/[\s·,]+/)) addKw(w);
     for (const v of list)
-      for (const w of v.title.replace(/#[^\s#]+/g, " ").split(/[\s·,.!?\[\]()/|"']+/))
-        if (w.length >= 2) myKeywords.add(w.toLowerCase());
+      for (const w of v.title.replace(/#[^\s#]+/g, " ").split(/[\s·,.!?\[\]()/|"']+/)) addKw(w);
     const kwOverlap = (c: any) => {
       const text = `${c.name} ${c.description || ""} ${c.top?.title || ""}`.toLowerCase();
       let n = 0;
