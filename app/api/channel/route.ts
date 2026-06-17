@@ -1,7 +1,7 @@
 // app/api/channel/route.ts
 //
 // 빠른 1단계: YouTube API만으로 채널 + 최근 10개(쇼츠/롱폼·조회·날짜·썸네일) 즉시 반환.
-// 무거운 Opus 진단은 /api/solution이 2단계로 맡는다(체감 속도).
+// 무거운 정찰·진단·기획은 /api/brief(통합 브리핑 엔진)가 2단계로 맡는다(체감 속도).
 //
 // POST /api/channel { channelUrl } → { channel, videos }
 
