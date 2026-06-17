@@ -47,20 +47,23 @@ async function resolveChannel(url: string) {
   };
 }
 
-async function getRecent(uploadsId: string, max = 10) {
+async function getRecent(uploadsId: string, max = 10, pageToken?: string) {
   const pl = await (
     await fetch(
-      `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=${max}&playlistId=${uploadsId}&key=${YT_KEY}`
+      `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=${max}&playlistId=${uploadsId}${
+        pageToken ? `&pageToken=${pageToken}` : ""
+      }&key=${YT_KEY}`
     )
   ).json();
+  const nextPageToken = (pl.nextPageToken as string) || null;
   const ids = (pl.items || []).map((i: any) => i.contentDetails.videoId).join(",");
-  if (!ids) return [];
+  if (!ids) return { videos: [], nextPageToken };
   const v = await (
     await fetch(
       `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids}&key=${YT_KEY}`
     )
   ).json();
-  return (v.items || []).map((x: any) => {
+  const videos = (v.items || []).map((x: any) => {
     const sec = isoToSec(x.contentDetails?.duration || "");
     const isShort =
       (sec > 0 && sec <= 60) || /#shorts/i.test(x.snippet.title + (x.snippet.description || ""));
@@ -75,10 +78,11 @@ async function getRecent(uploadsId: string, max = 10) {
       thumb: (th.medium || th.high || th.default)?.url || "",
     };
   });
+  return { videos, nextPageToken };
 }
 
 export async function POST(req: NextRequest) {
-  const { channelUrl } = await req.json();
+  const { channelUrl, pageToken } = await req.json();
   if (!channelUrl) {
     return NextResponse.json({ error: "채널 URL을 확인해 주세요." }, { status: 400 });
   }
@@ -89,9 +93,10 @@ export async function POST(req: NextRequest) {
       { status: 404 }
     );
   }
-  const videos = await getRecent(ch.uploads, 10);
+  const { videos, nextPageToken } = await getRecent(ch.uploads, 10, pageToken);
   return NextResponse.json({
     channel: { name: ch.name, subscribers: ch.subscribers, videoCount: ch.videoCount },
     videos,
+    nextPageToken,
   });
 }

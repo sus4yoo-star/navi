@@ -118,7 +118,7 @@ type Short = {
   hashtags?: string[];
   title: string;
   reason: string;
-  score?: number; // 예상 성과 0~100
+  score?: number; // 정렬용 상대 우선순위(겉으로 표시 안 함)
 };
 type Analysis = {
   summary?: string; // 영상 전체 핵심 요약
@@ -149,6 +149,8 @@ export default function Solution({
   const [err, setErr] = useState("");
   const [channel, setChannel] = useState<{ name: string; subscribers: number; videoCount: number } | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
+  const [pageToken, setPageToken] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [sol, setSol] = useState<Sol | null>(null);
 
   const [deepId, setDeepId] = useState<string | null>(null);
@@ -173,6 +175,7 @@ export default function Solution({
     setBench(null);
     setChannel(null);
     setVideos([]);
+    setPageToken(null);
     setDeepId(null);
     setDeep(null);
     let base: any;
@@ -181,6 +184,7 @@ export default function Solution({
       base = await callJson("/api/channel", { channelUrl });
       setChannel(base.channel || null);
       setVideos(base.videos || []);
+      setPageToken(base.nextPageToken || null);
     } catch (e: any) {
       setErr(e.message);
       setLoading(false);
@@ -233,6 +237,24 @@ export default function Solution({
   useEffect(() => {
     run();
   }, [run]);
+
+  // 이전 영상 더 불러오기 — 다음 페이지를 받아 목록에 이어붙인다(첫 영상까지).
+  async function loadMore() {
+    if (!pageToken || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const more = await callJson("/api/channel", { channelUrl, pageToken });
+      setVideos((prev) => {
+        const seen = new Set(prev.map((v) => v.id));
+        return [...prev, ...(more.videos || []).filter((v: Video) => !seen.has(v.id))];
+      });
+      setPageToken(more.nextPageToken || null);
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function deepDive(v: Video) {
     if (deepId === v.id) {
@@ -398,6 +420,11 @@ export default function Solution({
               )}
             </div>
           ))}
+          {pageToken && (
+            <button className="nv-more" onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? "불러오는 중…" : "이전 영상 더 보기"}
+            </button>
+          )}
         </div>
       )}
 
@@ -553,9 +580,7 @@ function Deep({ a }: { a: Analysis }) {
               <div key={i} className="nv-short-card">
                 <div className="nv-cue-row">
                   <span className="nv-mono nv-cue">{s.cue || "CUE " + (i + 1)}</span>
-                  {typeof s.score === "number" && (
-                    <span className="nv-mono nv-score">예상 {s.score}</span>
-                  )}
+                  <span className="nv-mono nv-score">추천 {i + 1}순위</span>
                 </div>
                 <p className="nv-hook" style={{ fontSize: 16, marginTop: 6 }}>
                   &ldquo;{s.hook}&rdquo;
@@ -711,6 +736,9 @@ const css = `
 .nv-stat{display:flex;flex-direction:column;gap:3px}
 .nv-stat-l{font-size:10.5px;color:${C.faint};letter-spacing:.1em;text-transform:uppercase}
 .nv-stat-v{font-size:14px;color:${C.ink};font-weight:600;line-height:1.35}
+.nv-more{width:100%;margin-top:12px;padding:11px;background:transparent;border:1px solid ${C.line};border-radius:9px;color:${C.sub};font-size:13.5px;font-weight:600;cursor:pointer}
+.nv-more:hover{border-color:${C.accent};color:${C.accent}}
+.nv-more:disabled{opacity:.55;cursor:default}
 .nv-read{font-size:14.5px;color:${C.ink};line-height:1.65;margin:11px 0 0}
 .nv-evi{font-size:12px;color:${C.live};line-height:1.5;margin-top:3px}
 .nv-strat-pt{font-size:14.5px;font-weight:700;margin-bottom:3px;color:${C.ink}}
