@@ -191,7 +191,7 @@ export default async (req: Request) => {
   try {
     const body = await req.json();
     id = body.id;
-    const { channel, videos, niche } = body;
+    const { channel, videos, niche, tone, purpose, aspiration } = body;
     if (!id) return new Response("bad request", { status: 400 });
 
     const myName = channel?.name ?? "";
@@ -342,6 +342,11 @@ export default async (req: Request) => {
       `[내 채널] ${mine.name} · [${catLabel(myCategory)}] · 구독자 ${mine.subs.toLocaleString()} · 평균조회 ${mine.avgViews.toLocaleString()} · 쇼츠 ${mine.shortsPct}%` +
       (niche ? ` · 분야 ${niche}` : "") +
       `\n[내 최근 영상 — 내 색깔]\n${myPerf || "(아직 영상이 적음)"}` +
+      ((tone || purpose || aspiration)
+        ? `\n[크리에이터 의도]${tone ? ` 톤: ${tone}.` : ""}${purpose ? ` 목적: ${purpose}.` : ""}${
+            aspiration ? ` 닮고 싶은: ${aspiration}.` : ""
+          } — ideas·strategy는 이 의도·톤에 맞출 것.`
+        : "") +
       `\n\n[후보 채널들 — 카테고리·소개·규모를 보고, 내 채널과 '같은 종류·결·닿을 만한 규모'인 진짜 peer만 골라 channels에 넣어라]\n${candText || "(검색 결과 없음)"}` +
       `\n\n[후보 대표영상의 시청자 댓글 — 진짜 수요]\n${commentBlocks.join("\n\n") || "(댓글 없음)"}`;
 

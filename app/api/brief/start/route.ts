@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
-  const { channel, videos, niche } = await req.json();
+  const { channel, videos, niche, tone, purpose, aspiration } = await req.json();
   if (!channel || !Array.isArray(videos)) {
     return NextResponse.json({ error: "채널 데이터가 없어요." }, { status: 400 });
   }
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     await fetch(`${origin}/.netlify/functions/brief-background`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: data.id, channel, videos, niche }),
+      body: JSON.stringify({ id: data.id, channel, videos, niche, tone, purpose, aspiration }),
     });
   } catch {
     await supabase

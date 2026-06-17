@@ -349,7 +349,14 @@ export default function Solution({
       try {
         let pid = !force && cached?.status === "pending" ? cached.id : undefined;
         if (!pid) {
-          const r = await callJson("/api/brief/start", { channel: ch, videos: vids, niche });
+          const r = await callJson("/api/brief/start", {
+            channel: ch,
+            videos: vids,
+            niche,
+            tone,
+            purpose,
+            aspiration,
+          });
           pid = r.id;
           saveCache(key, { id: pid, status: "pending" });
         }
@@ -364,7 +371,7 @@ export default function Solution({
         setBriefLoading(false);
       }
     },
-    [channelUrl, niche]
+    [channelUrl, niche, tone, purpose, aspiration]
   );
 
   const run = useCallback(async () => {
