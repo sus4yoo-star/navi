@@ -599,6 +599,11 @@ export default function Solution({
                       구독 {c.subs.toLocaleString()} · 평균조회 {c.avgViews.toLocaleString()} · 최근60일{" "}
                       {c.recent60}편
                     </div>
+                    {!!brief.mine?.avgViews && c.avgViews > 0 && (
+                      <span className="nv-co-mult">
+                        내 채널 평균조회의 ×{(c.avgViews / brief.mine.avgViews).toFixed(c.avgViews / brief.mine.avgViews >= 10 ? 0 : 1)}
+                      </span>
+                    )}
                     {c.top &&
                       (c.top.url ? (
                         <a className="nv-rt-top" href={c.top.url} target="_blank" rel="noopener noreferrer">
@@ -1267,7 +1272,8 @@ a.nv-src{text-decoration:none}
 .nv-cocard-thumb{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none;background:${C.canvas}}
 .nv-cocard-name{font-size:15px;font-weight:700;color:${C.ink};text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nv-cocard-name:hover{color:${C.accent}}
-.nv-cocard-stats{font-size:11.5px;color:${C.sub};margin-bottom:7px}
+.nv-cocard-stats{font-size:11.5px;color:${C.sub};margin-bottom:6px}
+.nv-co-mult{display:inline-block;font-size:11px;font-weight:700;color:${C.live};background:#EAF7F0;border:1px solid #BFE9D5;border-radius:999px;padding:2px 9px;margin-bottom:8px}
 .nv-rt-top{display:block;font-size:11.5px;font-weight:500;color:${C.live};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}
 .nv-rt-top:hover{text-decoration:underline}
 .nv-tag{display:inline-block;background:${C.canvas};border:1px solid ${C.line};border-radius:7px;padding:5px 10px;font-size:12.5px;margin:0 6px 6px 0;color:${C.sub}}
