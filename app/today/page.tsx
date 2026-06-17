@@ -20,6 +20,7 @@ const todayLabel = new Date(Date.now() + 9 * 3600e3).toLocaleDateString("ko-KR",
 type Profile = {
   channel_url: string;
   channelName: string;
+  userId?: string;
   niche?: string;
   tone?: string;
   purpose?: string;
@@ -58,6 +59,7 @@ export default function Today() {
       setProfile({
         channel_url: p.channel_url,
         channelName: p.niche || "내 채널",
+        userId: user.id,
         niche: p.niche || undefined,
         tone: p.tone || undefined,
         purpose: p.purpose || undefined,
@@ -169,6 +171,7 @@ export default function Today() {
             aspiration={profile.aspiration}
             benchmarkUrl={profile.benchmark_url}
             niche={profile.niche}
+            userId={profile.userId}
           />
         )}
       </div>

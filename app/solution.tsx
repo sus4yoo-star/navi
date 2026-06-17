@@ -138,6 +138,7 @@ export default function Solution({
   aspiration,
   benchmarkUrl,
   niche,
+  userId,
 }: {
   channelUrl: string;
   tone?: string;
@@ -145,6 +146,7 @@ export default function Solution({
   aspiration?: string;
   benchmarkUrl?: string;
   niche?: string;
+  userId?: string;
 }) {
   const [loading, setLoading] = useState(false); // 1단계: 목록
   const [solLoading, setSolLoading] = useState(false); // 2단계: 진단
@@ -290,7 +292,12 @@ export default function Solution({
         const cached = loadCache(dkey);
         let id = cached?.status === "pending" ? cached.id : undefined;
         if (!id) {
-          const r = await callJson("/api/analyze/start", { videoUrl, channelUrl, format: v.format });
+          const r = await callJson("/api/analyze/start", {
+            videoUrl,
+            channelUrl,
+            format: v.format,
+            userId, // 완료되면 이 사용자에게 푸시
+          });
           id = r.id;
           saveCache(dkey, { id, status: "pending" });
         }

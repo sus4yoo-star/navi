@@ -10,9 +10,44 @@
 
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
+import webpush from "web-push";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const VAPID_PUBLIC = process.env.VAPID_PUBLIC;
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE;
+
+// 분석이 끝나면 해당 사용자의 모든 기기에 '완료' 푸시 — 앱을 닫았어도 알림이 간다.
+async function notifyDone(userId: string, videoTitle?: string) {
+  if (!userId || !VAPID_PUBLIC || !VAPID_PRIVATE) return;
+  try {
+    webpush.setVapidDetails(
+      process.env.SITE_URL || "mailto:hello@navi.app",
+      VAPID_PUBLIC,
+      VAPID_PRIVATE
+    );
+    const { data: subs } = await sb
+      .from("push_subscriptions")
+      .select("id, subscription")
+      .eq("user_id", userId);
+    const payload = JSON.stringify({
+      title: "쇼츠 분석 완료",
+      body: videoTitle ? `"${videoTitle}" 분석이 준비됐어요` : "영상 분석이 준비됐어요",
+      url: "/today",
+    });
+    for (const row of subs || []) {
+      try {
+        await webpush.sendNotification(row.subscription as any, payload);
+      } catch (e: any) {
+        // 만료된 구독은 정리
+        if (e?.statusCode === 404 || e?.statusCode === 410)
+          await sb.from("push_subscriptions").delete().eq("id", row.id);
+      }
+    }
+  } catch (e: any) {
+    console.error("notifyDone 실패:", e?.message || e);
+  }
+}
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const YT_KEY = process.env.YOUTUBE_API_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -189,7 +224,7 @@ export default async (req: Request) => {
   try {
     const body = await req.json();
     id = body.id;
-    const { videoUrl, channelUrl, format } = body;
+    const { videoUrl, channelUrl, format, userId } = body;
     if (!id || !videoUrl) return new Response("bad request", { status: 400 });
 
     const videoId = parseVideoId(videoUrl);
@@ -217,6 +252,7 @@ export default async (req: Request) => {
       .from("analyses")
       .update({ status: "done", video, channel, result: analysis })
       .eq("id", id);
+    if (userId) await notifyDone(userId, video?.title); // 완료 푸시
   } catch (e: any) {
     console.error("analyze-background 실패:", e?.message || e);
     if (id) {

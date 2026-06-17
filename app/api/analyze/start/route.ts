@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
-  const { videoUrl, channelUrl, format } = await req.json();
+  const { videoUrl, channelUrl, format, userId } = await req.json();
   if (!videoUrl) {
     return NextResponse.json({ error: "유튜브 영상 URL을 확인해 주세요." }, { status: 400 });
   }
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     await fetch(`${origin}/.netlify/functions/analyze-background`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: data.id, videoUrl, channelUrl, format }),
+      body: JSON.stringify({ id: data.id, videoUrl, channelUrl, format, userId }),
     });
   } catch (e: any) {
     await supabase
