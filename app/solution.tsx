@@ -528,8 +528,16 @@ export default function Solution({
   );
 }
 
+// "1:39-2:07" / "0:50" 같은 큐의 시작 초를 뽑아 영상 시간 순으로 정렬
+function cueStart(cue?: string) {
+  if (!cue) return Number.MAX_SAFE_INTEGER;
+  const p = cue.split("-")[0].trim().split(":").map(Number);
+  if (p.some(isNaN)) return Number.MAX_SAFE_INTEGER;
+  return p.reduce((acc, n) => acc * 60 + n, 0);
+}
+
 function Deep({ a }: { a: Analysis }) {
-  const shorts = (a.shorts || []).slice().sort((x, y) => (y.score ?? 0) - (x.score ?? 0));
+  const shorts = (a.shorts || []).slice().sort((x, y) => cueStart(x.cue) - cueStart(y.cue));
   return (
     <div style={{ marginTop: 6 }}>
       {a.summary && (
@@ -565,7 +573,7 @@ function Deep({ a }: { a: Analysis }) {
       )}
       {shorts.length > 0 && (
         <div className="nv-deep-block">
-          <p className="nv-h">여기서 쇼츠로 뽑으면 좋아요 — 성과 높은 순</p>
+          <p className="nv-h">여기서 쇼츠로 뽑으면 좋아요</p>
           {shorts.map((s, i) => {
             const pkg = [
               s.title && `제목: ${s.title}`,
@@ -580,7 +588,6 @@ function Deep({ a }: { a: Analysis }) {
               <div key={i} className="nv-short-card">
                 <div className="nv-cue-row">
                   <span className="nv-mono nv-cue">{s.cue || "CUE " + (i + 1)}</span>
-                  <span className="nv-mono nv-score">추천 {i + 1}순위</span>
                 </div>
                 <p className="nv-hook" style={{ fontSize: 16, marginTop: 6 }}>
                   &ldquo;{s.hook}&rdquo;
