@@ -99,7 +99,7 @@ export default function Onboarding() {
       <div className="nv-topbar">
         <div className="nv-wrap nv-topbar-in">
           <Wing />
-          <span className="nv-brand">나비</span>
+          <span className="nv-brand">NAVI</span>
           <span className="nv-mono nv-topbar-date">가입 · 한 번만</span>
         </div>
       </div>
@@ -258,7 +258,7 @@ const css = `
 .nv-wrap{max-width:680px;margin:0 auto;padding:0 22px 48px}
 .nv-topbar{background:#0F1115;border-bottom:1px solid rgba(255,255,255,.08)}
 .nv-topbar-in{display:flex;align-items:center;gap:11px;padding:18px 22px}
-.nv-brand{font-size:22px;font-weight:700;letter-spacing:-.02em;color:#fff}
+.nv-brand{font-family:ui-monospace,'SF Mono','Segoe UI Mono',Menlo,monospace;font-size:20px;font-weight:700;letter-spacing:.2em;color:#fff}
 .nv-topbar-date{font-size:11.5px;color:rgba(255,255,255,.58);margin-left:auto}
 .nv-field{width:100%;box-sizing:border-box;background:${C.card};border:1.5px solid #D5D8E1;border-radius:10px;padding:13px 15px;font-size:14.5px;color:${C.ink};font-family:inherit;outline:none;transition:border-color .14s,box-shadow .14s}
 .nv-field::placeholder{color:#A6ABB6}

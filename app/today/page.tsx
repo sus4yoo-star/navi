@@ -82,7 +82,7 @@ export default function Today() {
       <div className="nv-topbar">
         <div className="nv-wrap nv-topbar-in">
           <Wing />
-          <span className="nv-brand">나비</span>
+          <span className="nv-brand">NAVI</span>
           <span className="nv-mono nv-topbar-date">{todayLabel}</span>
         </div>
       </div>
@@ -92,7 +92,7 @@ export default function Today() {
           오늘의 브리핑
         </h1>
         <p style={{ fontSize: 14, color: C.sub, margin: "0 0 14px", lineHeight: 1.6 }}>
-          매일 아침, 나비가 네 채널을 새로 읽고 오늘 뭘 만들지 정해와요.
+          매일 아침, 나비가 당신의 채널을 새로 읽고 오늘 뭘 만들지 정해와요.
         </p>
 
         {phase === "ready" && profile && (
@@ -165,7 +165,7 @@ const css = `
 .nv-wrap{max-width:680px;margin:0 auto;padding:0 22px 48px}
 .nv-topbar{background:#0F1115;border-bottom:1px solid rgba(255,255,255,.08)}
 .nv-topbar-in{display:flex;align-items:center;gap:11px;padding:18px 22px}
-.nv-brand{font-size:22px;font-weight:700;letter-spacing:-.02em;color:#fff}
+.nv-brand{font-family:ui-monospace,'SF Mono','Segoe UI Mono',Menlo,monospace;font-size:20px;font-weight:700;letter-spacing:.2em;color:#fff}
 .nv-topbar-date{font-size:11.5px;color:rgba(255,255,255,.58);margin-left:auto}
 .nv-link{background:none;border:none;color:${C.accent};font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:2px}
 .nv-card{background:${C.card};border:1px solid ${C.line};border-radius:14px;padding:18px 20px;margin-bottom:13px;box-shadow:0 1px 2px rgba(20,23,28,.04),0 8px 24px -18px rgba(20,23,28,.18)}

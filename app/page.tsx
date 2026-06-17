@@ -73,7 +73,7 @@ export default function Home() {
       <header className="nv-hero">
         <div className="nv-wrap nv-hero-top">
           <Wing />
-          <span className="nv-brand">나비</span>
+          <span className="nv-brand">NAVI</span>
           <Link href="/today" className="nv-hero-link">
             오늘의 브리핑
           </Link>
@@ -297,7 +297,7 @@ const css = `
   -webkit-mask-image:radial-gradient(120% 70% at 18% 0%,#000 0%,transparent 70%);
   mask-image:radial-gradient(120% 70% at 18% 0%,#000 0%,transparent 70%)}
 .nv-hero-top{position:relative;z-index:1;display:flex;align-items:center;gap:11px;padding-top:18px;padding-bottom:6px}
-.nv-brand{font-size:22px;font-weight:700;letter-spacing:-.02em;color:#fff}
+.nv-brand{font-family:ui-monospace,'SF Mono','Segoe UI Mono',Menlo,monospace;font-size:20px;font-weight:700;letter-spacing:.2em;color:#fff}
 .nv-hero-link{margin-left:auto;font-size:12.5px;color:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 13px;text-decoration:none;transition:all .14s}
 .nv-hero-link:hover{border-color:rgba(255,255,255,.45);color:#fff}
 .nv-hero-body{position:relative;z-index:1;padding:26px 22px 44px}
