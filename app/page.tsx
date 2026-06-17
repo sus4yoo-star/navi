@@ -1,7 +1,8 @@
 "use client";
 
-// app/page.tsx — 나비 홈: 로그인 우선 랜딩 + (로그인 없이) 온디맨드 체험
-// 분석 호출은 서버(/api/detect, /api/analyze)로. 실제 수치는 YouTube API 그대로 — 지어내지 않음.
+// app/page.tsx — 나비 홈: 로그인 우선 랜딩 + (로그인 없이) 채널 자동 분석 체험
+// 채널 URL 하나 → 최근 10개(쇼츠/롱폼) 알아서 진단·솔루션. 영상별 깊은 분석은 "자세히" 한 번.
+// 채널/영상 시청은 서버에서. 수치는 YouTube API 실측 — 지어내지 않음.
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -19,8 +20,15 @@ const TONES = [
 const PURPOSES = ["신규 유입 확장", "충성팬 심화"];
 
 type Detect = { summary: string; reason: string };
-type Stat = { views: number; likes: number; comments: number; title: string };
-type ChannelStat = { name: string; subscribers: number; videoCount: number };
+type Video = { id: string; title: string; views: number; date: string; format: string };
+type Solution = {
+  read?: string;
+  patterns?: { point: string; evidence: string }[];
+  shorts_solution?: { point: string; why: string }[];
+  longform_solution?: { point: string; why: string }[];
+  next_videos?: { title: string; format: string; angle: string; hook: string }[];
+  this_week?: string[];
+};
 type Analysis = {
   shorts?: { cue?: string; hook: string; reason: string; title: string }[];
   titles?: string[];
@@ -45,12 +53,18 @@ export default function Home() {
   const [aspiration, setAspiration] = useState("");
   const [confirmed, setConfirmed] = useState(false);
 
-  const [videoUrl, setVideoUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  const [video, setVideo] = useState<Stat | null>(null);
-  const [channel, setChannel] = useState<ChannelStat | null>(null);
-  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  // 채널 자동 솔루션
+  const [solLoading, setSolLoading] = useState(false);
+  const [solErr, setSolErr] = useState("");
+  const [channel, setChannel] = useState<{ name: string; subscribers: number; videoCount: number } | null>(null);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [sol, setSol] = useState<Solution | null>(null);
+
+  // 영상별 깊은 분석 (탭 시)
+  const [deepId, setDeepId] = useState<string | null>(null);
+  const [deepLoading, setDeepLoading] = useState(false);
+  const [deepErr, setDeepErr] = useState("");
+  const [deep, setDeep] = useState<Analysis | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setAuthed(!!data.user));
@@ -82,37 +96,59 @@ export default function Home() {
     }
   }
 
-  async function runAnalysis() {
-    if (!videoUrl.trim()) {
-      setErr("분석할 유튜브 영상 URL을 넣어주세요.");
+  async function runChannel() {
+    setConfirmed(true);
+    setSolLoading(true);
+    setSolErr("");
+    setSol(null);
+    setChannel(null);
+    setVideos([]);
+    setDeepId(null);
+    setDeep(null);
+    try {
+      const r = await fetch("/api/channel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelUrl, tone, purpose, aspiration }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "분석에 실패했어요.");
+      setChannel(j.channel || null);
+      setVideos(j.videos || []);
+      setSol(j.solution || null);
+    } catch (e: any) {
+      setSolErr(e.message);
+    } finally {
+      setSolLoading(false);
+    }
+  }
+
+  async function deepDive(v: Video) {
+    if (deepId === v.id) {
+      setDeepId(null);
+      setDeep(null);
       return;
     }
-    setLoading(true);
-    setErr("");
-    setVideo(null);
-    setChannel(null);
-    setAnalysis(null);
+    setDeepId(v.id);
+    setDeep(null);
+    setDeepErr("");
+    setDeepLoading(true);
     try {
       const r = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoUrl, channelUrl }),
+        body: JSON.stringify({
+          videoUrl: `https://www.youtube.com/watch?v=${v.id}`,
+          channelUrl,
+        }),
       });
       const j = await r.json();
-      if (!r.ok) {
-        throw new Error(
-          j.needsWhisper
-            ? "자막이 없는 영상이라 아직 자동 분석이 어려워요. 자막이 있는 영상으로 시도해 주세요."
-            : j.error || "분석에 실패했어요."
-        );
-      }
-      setVideo(j.video || null);
-      setChannel(j.channel || null);
-      setAnalysis(j.analysis || null);
+      if (!r.ok) throw new Error(j.error || "분석에 실패했어요.");
+      setDeep(j.analysis || null);
     } catch (e: any) {
-      setErr(e.message);
+      setDeepErr(e.message);
     } finally {
-      setLoading(false);
+      setDeepLoading(false);
     }
   }
 
@@ -143,8 +179,8 @@ export default function Home() {
             AI 성장 PD
           </h1>
           <p className="nv-hero-sub">
-            가입할 때 채널 URL 한 번 — 그다음은 나비가 알아서. 트렌드·벤치마크·오늘의 영상까지
-            매일 자동으로 도착해요.
+            가입할 때 채널 URL 한 번 — 그다음은 나비가 알아서. 최근 영상을 직접 보고 진단·트렌드·
+            오늘의 영상까지 매일 자동으로 도착해요.
           </p>
 
           {authed ? (
@@ -160,10 +196,7 @@ export default function Home() {
                 <button className="nv-btn-oauth" onClick={() => signIn("google")}>
                   <GoogleG /> Google로 시작
                 </button>
-                <button
-                  className="nv-btn-oauth nv-btn-kakao"
-                  onClick={() => signIn("kakao")}
-                >
+                <button className="nv-btn-oauth nv-btn-kakao" onClick={() => signIn("kakao")}>
                   <KakaoK /> 카카오로 시작
                 </button>
               </div>
@@ -177,14 +210,15 @@ export default function Home() {
         <div className="nv-hero-grid" aria-hidden="true" />
       </header>
 
-      {/* ── 로그인 없이 체험 ── */}
+      {/* ── 로그인 없이 체험: 채널 URL 하나로 알아서 ── */}
       <div className="nv-wrap" style={{ paddingTop: 30 }}>
         <div className="nv-try-head">
           <div>
             <div className="nv-mono nv-eyebrow">no-login · 체험</div>
-            <h2 className="nv-h2">로그인 없이 한 영상 먼저 분석해보기</h2>
+            <h2 className="nv-h2">채널 URL만 넣으면, 최근 영상까지 알아서 분석</h2>
             <p className="nv-muted2">
-              채널을 읽어 톤을 잡고, 영상 하나를 쇼츠·패키징·전략으로 분해해드려요.
+              최근 10개(쇼츠·롱폼)를 읽어 진단하고 처방·다음 영상까지 제안해드려요. 영상 URL은
+              따로 넣지 않아요.
             </p>
           </div>
           {!tryOpen && (
@@ -201,7 +235,7 @@ export default function Home() {
               <span className="nv-step-dash">—</span>
               <span className={"nv-dot " + (proposed && !confirmed ? "on" : "")} /> 확인·수정
               <span className="nv-step-dash">—</span>
-              <span className={"nv-dot " + (confirmed ? "on" : "")} /> 맞춤 분석
+              <span className={"nv-dot " + (confirmed ? "on" : "")} /> 자동 솔루션
             </div>
 
             {!confirmed && (
@@ -278,9 +312,9 @@ export default function Home() {
                     <button
                       className="nv-btn"
                       style={{ width: "100%" }}
-                      onClick={() => tone && purpose && setConfirmed(true)}
+                      onClick={() => tone && purpose && runChannel()}
                     >
-                      이 프로필로 분석 시작
+                      이 프로필로 채널 자동 분석
                     </button>
                   </div>
                 )}
@@ -298,162 +332,153 @@ export default function Home() {
                   </div>
                   <button
                     className="nv-ghost"
-                    onClick={() => setConfirmed(false)}
-                    disabled={loading}
+                    onClick={() => {
+                      setConfirmed(false);
+                      setSol(null);
+                    }}
+                    disabled={solLoading}
                   >
                     프로필 수정
                   </button>
                 </div>
 
-                <div className="nv-card">
-                  <label className="nv-label">유튜브 영상 URL</label>
-                  <input
-                    className="nv-field"
-                    value={videoUrl}
-                    onChange={(e) => setVideoUrl(e.target.value)}
-                    placeholder="https://youtube.com/watch?v=..."
-                    style={{ marginBottom: 7 }}
-                  />
-                  <p className="nv-mono nv-hint" style={{ margin: "0 0 15px" }}>
-                    * URL만 넣으면 나비가 영상의 음성·화면을 직접 보고 분석해요. 자막 없어도 됩니다.
-                  </p>
-                  <button
-                    className="nv-btn"
-                    style={{ width: "100%" }}
-                    onClick={runAnalysis}
-                    disabled={loading}
-                  >
-                    {loading ? "나비 분석 중…" : `${tone}에 맞춰 분석하기`}
-                  </button>
-                  {err && <p className="nv-err">{err}</p>}
-                </div>
-
-                {loading && (
+                {solLoading && (
                   <div className="nv-running">
-                    <span className="nv-pulse" /> 자막 읽고 프로필에 맞춰 분석 중
+                    <span className="nv-pulse" /> 최근 영상 읽고 채널 진단 중
+                  </div>
+                )}
+                {solErr && (
+                  <div className="nv-card" style={{ borderColor: C.accent }}>
+                    <p className="nv-err" style={{ margin: "0 0 10px" }}>
+                      {solErr}
+                    </p>
+                    <button className="nv-btn" onClick={runChannel}>
+                      다시 분석
+                    </button>
                   </div>
                 )}
 
-                {(video || channel) && (
+                {channel && (
                   <div className="nv-card">
-                    <span className="nv-mono nv-eyebrow">읽어온 실제 수치</span>
-                    <div style={{ marginTop: 8 }}>
-                      {channel && (
-                        <div className="nv-row first nv-mono nv-data">
-                          {channel.name} · 구독자 {channel.subscribers.toLocaleString()} · 영상{" "}
-                          {channel.videoCount.toLocaleString()}개
-                        </div>
-                      )}
-                      {video && (
-                        <div className="nv-row nv-mono nv-data">
-                          조회 {video.views.toLocaleString()} · 좋아요{" "}
-                          {video.likes.toLocaleString()} · 댓글{" "}
-                          {video.comments.toLocaleString()}
-                        </div>
-                      )}
+                    <span className="nv-mono nv-eyebrow">채널 현황</span>
+                    <div className="nv-mono nv-data" style={{ margin: "8px 0 0" }}>
+                      {channel.name} · 구독자 {channel.subscribers.toLocaleString()} · 영상{" "}
+                      {channel.videoCount.toLocaleString()}개
                     </div>
+                    {sol?.read && <p className="nv-read">{sol.read}</p>}
                   </div>
                 )}
 
-                {analysis && (
-                  <div style={{ marginBottom: 24 }}>
-                    <div className="nv-mono nv-eyebrow" style={{ margin: "8px 0 11px" }}>
-                      01 · 제작 — 채널 톤 맞춤
-                    </div>
+                {videos.length > 0 && (
+                  <div className="nv-card">
+                    <p className="nv-h">최근 영상 — 탭하면 그 영상만 깊게 분석</p>
+                    {videos.map((v, i) => (
+                      <div key={v.id} className={"nv-row " + (i ? "" : "first")}>
+                        <div className="nv-vid">
+                          <span className={"nv-badge " + (v.format === "쇼츠" ? "s" : "l")}>
+                            {v.format}
+                          </span>
+                          <span className="nv-vid-title">{v.title}</span>
+                          <button
+                            className="nv-ghost nv-vid-btn"
+                            onClick={() => deepDive(v)}
+                            disabled={deepLoading && deepId === v.id}
+                          >
+                            {deepId === v.id ? (deepLoading ? "보는 중…" : "닫기") : "자세히"}
+                          </button>
+                        </div>
+                        <div className="nv-mono nv-vid-meta">
+                          조회 {v.views.toLocaleString()} · {v.date}
+                        </div>
 
-                    {(analysis.shorts || []).map((s, i) => (
-                      <div className="nv-card" key={i}>
-                        <div className="nv-cue-row">
-                          <span className="nv-mono nv-cue">{s.cue || "CUE " + (i + 1)}</span>
-                          <Copy text={s.hook} />
-                        </div>
-                        <p className="nv-hook">&ldquo;{s.hook}&rdquo;</p>
-                        <p className="nv-reason">{s.reason}</p>
-                        <div className="nv-shorts-title">
-                          <b>쇼츠 제목</b> · {s.title}
-                        </div>
+                        {deepId === v.id && (
+                          <div className="nv-deep">
+                            {deepLoading && (
+                              <div className="nv-running" style={{ margin: "6px 0" }}>
+                                <span className="nv-pulse" /> 나비가 이 영상을 직접 보는 중
+                              </div>
+                            )}
+                            {deepErr && <p className="nv-err">{deepErr}</p>}
+                            {deep && <Deep a={deep} />}
+                          </div>
+                        )}
                       </div>
                     ))}
+                  </div>
+                )}
 
-                    {analysis.titles && analysis.titles.length > 0 && (
-                      <div className="nv-card">
-                        <p className="nv-h">제목 후보</p>
-                        {analysis.titles.map((t, i) => (
-                          <div key={i} className={"nv-row " + (i ? "" : "first") + " nv-row-flex"}>
-                            <span style={{ fontSize: 14.5 }}>{t}</span>
-                            <Copy text={t} />
-                          </div>
-                        ))}
+                {sol?.patterns && sol.patterns.length > 0 && (
+                  <div className="nv-card">
+                    <p className="nv-h">진단 — 무엇이 되고 무엇이 안 되나</p>
+                    {sol.patterns.map((p, i) => (
+                      <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                        <div className="nv-strat-pt">{p.point}</div>
+                        <div className="nv-mono nv-evi">근거 · {p.evidence}</div>
                       </div>
-                    )}
+                    ))}
+                  </div>
+                )}
 
-                    {analysis.thumbnails && analysis.thumbnails.length > 0 && (
-                      <div className="nv-card">
-                        <p className="nv-h">썸네일 컨셉</p>
-                        {analysis.thumbnails.map((t, i) => (
-                          <div key={i} className={"nv-row " + (i ? "" : "first")}>
-                            <div style={{ fontSize: 14, marginBottom: 3 }}>{t.concept}</div>
-                            <div className="nv-mono nv-copy-line">카피: {t.text}</div>
-                          </div>
-                        ))}
+                {sol?.shorts_solution && sol.shorts_solution.length > 0 && (
+                  <div className="nv-card">
+                    <p className="nv-h">
+                      <span className="nv-badge s">쇼츠</span> 처방
+                    </p>
+                    {sol.shorts_solution.map((s, i) => (
+                      <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                        <div className="nv-strat-pt">{s.point}</div>
+                        <div className="nv-strat-why">{s.why}</div>
                       </div>
-                    )}
+                    ))}
+                  </div>
+                )}
 
-                    {analysis.description && (
-                      <div className="nv-card">
+                {sol?.longform_solution && sol.longform_solution.length > 0 && (
+                  <div className="nv-card">
+                    <p className="nv-h">
+                      <span className="nv-badge l">롱폼</span> 처방
+                    </p>
+                    {sol.longform_solution.map((s, i) => (
+                      <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                        <div className="nv-strat-pt">{s.point}</div>
+                        <div className="nv-strat-why">{s.why}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {sol?.next_videos && sol.next_videos.length > 0 && (
+                  <>
+                    <div className="nv-mono nv-eyebrow" style={{ margin: "22px 0 11px" }}>
+                      다음에 만들 영상
+                    </div>
+                    {sol.next_videos.map((n, i) => (
+                      <div key={i} className="nv-card">
                         <div className="nv-cue-row">
-                          <p className="nv-h" style={{ marginBottom: 9 }}>
-                            설명란 초안
-                          </p>
-                          <Copy text={analysis.description} />
-                        </div>
-                        <p className="nv-desc">{analysis.description}</p>
-                      </div>
-                    )}
-
-                    {analysis.tags && analysis.tags.length > 0 && (
-                      <div className="nv-card">
-                        <div className="nv-cue-row" style={{ marginBottom: 10 }}>
-                          <p className="nv-h" style={{ margin: 0 }}>
-                            태그
-                          </p>
-                          <Copy text={analysis.tags.join(", ")} label="전체 복사" />
-                        </div>
-                        {analysis.tags.map((t, i) => (
-                          <span className="nv-tag nv-mono" key={i}>
-                            {t}
+                          <span className={"nv-badge " + (n.format === "쇼츠" ? "s" : "l")}>
+                            {n.format}
                           </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {analysis.strategy && analysis.strategy.length > 0 && (
-                      <>
-                        <div className="nv-mono nv-eyebrow" style={{ margin: "22px 0 11px" }}>
-                          02 · 성장 전략
+                          <Copy text={n.title} />
                         </div>
-                        <div className="nv-card">
-                          {analysis.strategy.map((s, i) => (
-                            <div key={i} className={"nv-row " + (i ? "" : "first")}>
-                              <div className="nv-strat-pt">{s.point}</div>
-                              <div className="nv-strat-why">{s.why}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-
-                    {analysis.next_actions && analysis.next_actions.length > 0 && (
-                      <div className="nv-card">
-                        <p className="nv-h">이번 주에 할 일</p>
-                        {analysis.next_actions.map((t, i) => (
-                          <div key={i} className={"nv-row " + (i ? "" : "first") + " nv-todo"}>
-                            <span className="nv-todo-box">□</span>
-                            {t}
-                          </div>
-                        ))}
+                        <p className="nv-hook">{n.title}</p>
+                        <p className="nv-reason">{n.angle}</p>
+                        {n.hook && (
+                          <div className="nv-firsthook">첫 3초 · {n.hook}</div>
+                        )}
                       </div>
-                    )}
+                    ))}
+                  </>
+                )}
+
+                {sol?.this_week && sol.this_week.length > 0 && (
+                  <div className="nv-card">
+                    <p className="nv-h">이번 주에 할 일</p>
+                    {sol.this_week.map((t, i) => (
+                      <div key={i} className={"nv-row " + (i ? "" : "first") + " nv-todo"}>
+                        <span className="nv-todo-box">□</span>
+                        {t}
+                      </div>
+                    ))}
                   </div>
                 )}
               </>
@@ -461,6 +486,100 @@ export default function Home() {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function Deep({ a }: { a: Analysis }) {
+  return (
+    <div style={{ marginTop: 6 }}>
+      {(a.shorts || []).map((s, i) => (
+        <div key={i} className="nv-deep-block">
+          <div className="nv-cue-row">
+            <span className="nv-mono nv-cue">{s.cue || "CUE " + (i + 1)}</span>
+            <Copy text={s.hook} />
+          </div>
+          <p className="nv-hook" style={{ fontSize: 16 }}>
+            &ldquo;{s.hook}&rdquo;
+          </p>
+          <p className="nv-reason">{s.reason}</p>
+          <div className="nv-shorts-title">
+            <b>쇼츠 제목</b> · {s.title}
+          </div>
+        </div>
+      ))}
+      {a.titles && a.titles.length > 0 && (
+        <div className="nv-deep-block">
+          <p className="nv-h">제목 후보</p>
+          {a.titles.map((t, i) => (
+            <div key={i} className="nv-row-flex" style={{ padding: "6px 0" }}>
+              <span style={{ fontSize: 14 }}>{t}</span>
+              <Copy text={t} />
+            </div>
+          ))}
+        </div>
+      )}
+      {a.thumbnails && a.thumbnails.length > 0 && (
+        <div className="nv-deep-block">
+          <p className="nv-h">썸네일 컨셉</p>
+          {a.thumbnails.map((t, i) => (
+            <div key={i} style={{ padding: "6px 0" }}>
+              <div style={{ fontSize: 14 }}>{t.concept}</div>
+              <div className="nv-mono nv-copy-line">카피: {t.text}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {a.description && (
+        <div className="nv-deep-block">
+          <div className="nv-cue-row">
+            <p className="nv-h" style={{ margin: 0 }}>
+              설명란 초안
+            </p>
+            <Copy text={a.description} />
+          </div>
+          <p className="nv-desc">{a.description}</p>
+        </div>
+      )}
+      {a.tags && a.tags.length > 0 && (
+        <div className="nv-deep-block">
+          <div className="nv-cue-row">
+            <p className="nv-h" style={{ margin: 0 }}>
+              태그
+            </p>
+            <Copy text={a.tags.join(", ")} label="전체 복사" />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            {a.tags.map((t, i) => (
+              <span className="nv-tag nv-mono" key={i}>
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {a.strategy && a.strategy.length > 0 && (
+        <div className="nv-deep-block">
+          <p className="nv-h">이 영상 기반 전략</p>
+          {a.strategy.map((s, i) => (
+            <div key={i} style={{ padding: "6px 0" }}>
+              <div className="nv-strat-pt">{s.point}</div>
+              <div className="nv-strat-why">{s.why}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {a.next_actions && a.next_actions.length > 0 && (
+        <div className="nv-deep-block">
+          <p className="nv-h">바로 할 일</p>
+          {a.next_actions.map((t, i) => (
+            <div key={i} className="nv-todo" style={{ padding: "6px 0" }}>
+              <span className="nv-todo-box">□</span>
+              {t}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -562,6 +681,17 @@ const css = `
 .nv-pick.on{background:${C.accentTint};color:${C.accentInk};border-color:${C.accent}}
 .nv-tag{display:inline-block;background:${C.canvas};border:1px solid ${C.line};border-radius:7px;padding:5px 10px;font-size:12.5px;margin:0 6px 6px 0;color:${C.sub}}
 
+.nv-badge{display:inline-block;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:6px;margin-right:8px;vertical-align:middle}
+.nv-badge.s{background:#EAF7F0;color:#1F9E6B;border:1px solid #BfE9D5}
+.nv-badge.l{background:${C.accentTint};color:${C.accentInk};border:1px solid #CFCBF6}
+
+.nv-vid{display:flex;align-items:center;gap:6px}
+.nv-vid-title{font-size:14px;color:${C.ink};font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nv-vid-btn{flex:none;padding:5px 11px}
+.nv-vid-meta{font-size:12px;color:${C.sub};margin-top:4px}
+.nv-deep{margin-top:12px;padding-top:12px;border-top:1px dashed ${C.line}}
+.nv-deep-block{background:${C.canvas};border:1px solid ${C.line};border-radius:11px;padding:14px 16px;margin-bottom:10px}
+
 .nv-copy{background:transparent;border:none;color:${C.accent};font-size:12px;cursor:pointer;padding:2px 4px;font-family:inherit;font-weight:600}
 .nv-copy-line{font-size:12.5px;color:${C.accent}}
 .nv-pulse{width:8px;height:8px;border-radius:50%;background:${C.accent};display:inline-block;animation:nvp 1.2s ease-in-out infinite}
@@ -573,20 +703,23 @@ const css = `
 .nv-step-dash{color:${C.line}}
 .nv-dot{width:6px;height:6px;border-radius:50%;background:${C.line}}
 .nv-dot.on{background:${C.accent};box-shadow:0 0 0 3px ${C.accentTint}}
-.nv-row{padding:10px 0;border-top:1px solid ${C.line}}
+.nv-row{padding:12px 0;border-top:1px solid ${C.line}}
 .nv-row.first{border-top:none}
 .nv-row-flex{display:flex;justify-content:space-between;align-items:center}
 .nv-cue-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .nv-cue{font-size:12px;color:${C.accent};font-weight:700;letter-spacing:.05em}
 .nv-hook{font-size:17.5px;font-weight:700;margin:0 0 7px;line-height:1.4;letter-spacing:-.01em;color:${C.ink}}
 .nv-reason{font-size:13.5px;color:${C.sub};margin:0 0 9px;line-height:1.6}
+.nv-firsthook{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px;color:${C.accentInk};background:${C.accentTint};border-radius:7px;padding:8px 11px;line-height:1.5}
 .nv-shorts-title{font-size:13px;color:${C.sub}}
 .nv-shorts-title b{color:${C.ink};font-weight:700}
 .nv-desc{font-size:13.5px;color:${C.sub};line-height:1.7;white-space:pre-wrap;margin:0}
 .nv-data{font-size:13px;color:${C.ink};font-weight:500}
+.nv-read{font-size:14.5px;color:${C.ink};line-height:1.65;margin:11px 0 0}
+.nv-evi{font-size:12px;color:${C.live};line-height:1.5;margin-top:3px}
 .nv-strat-pt{font-size:14.5px;font-weight:700;margin-bottom:3px;color:${C.ink}}
 .nv-strat-why{font-size:13px;color:${C.sub};line-height:1.6}
-.nv-todo{font-size:14;display:flex;gap:10px;font-size:14px;color:${C.ink}}
+.nv-todo{display:flex;gap:10px;font-size:14px;color:${C.ink}}
 .nv-todo-box{color:${C.accent};font-weight:700}
 .nv-profile{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .nv-profile-txt{font-size:13.5px;color:${C.ink};line-height:1.7}
