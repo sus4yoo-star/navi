@@ -249,6 +249,7 @@ type CohortCard = {
 type Brief = {
   cohort?: CohortCard[];
   mine?: { name: string; subs: number; avgViews: number; shortsPct: number };
+  spark?: string;
   landscape?: string;
   position?: string;
   diagnosis?: { point: string; evidence: string }[];
@@ -574,8 +575,15 @@ export default function Solution({
             </div>
           )}
 
+          {brief?.spark && (
+            <div className="nv-spark">
+              <Wing size={18} />
+              <p>{brief.spark}</p>
+            </div>
+          )}
+
           {brief?.landscape && (
-            <p className="nv-reason" style={{ margin: "12px 0 0", color: C.ink }}>{brief.landscape}</p>
+            <p className="nv-reason" style={{ margin: "12px 0 0", color: C.sub }}>{brief.landscape}</p>
           )}
 
           {!!brief?.cohort?.length && (
@@ -1276,6 +1284,9 @@ const css = `
 .nv-hero-eyebrow{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.16em;color:${C.accent};font-weight:700;text-transform:uppercase}
 .nv-hero-title{font-size:21px;font-weight:800;letter-spacing:-.02em;color:${C.ink};margin:7px 0 0;line-height:1.2}
 .nv-radar{background:linear-gradient(180deg,#EFFBF5 0%,#fff 120px);border:1px solid #C8E9D7;box-shadow:0 10px 30px -18px rgba(31,158,107,.4)}
+.nv-spark{display:flex;gap:11px;align-items:flex-start;margin:14px 0 2px;padding:15px 17px;border-radius:13px;background:linear-gradient(135deg,${C.accentTint} 0%,#F4F3FE 100%);border:1px solid #D6D2F4}
+.nv-spark svg{flex:none;margin-top:3px}
+.nv-spark p{margin:0;font-size:16.5px;line-height:1.5;font-weight:700;letter-spacing:-.01em;color:${C.accentInk}}
 .nv-radar .nv-hero-eyebrow{color:${C.live}}
 a.nv-src{text-decoration:none}
 .nv-co-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;font-size:11.5px;color:${C.sub}}

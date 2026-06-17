@@ -1,18 +1,25 @@
 :root {
   --canvas: #f4f5f7;
   --ink: #15171c;
+  --accent: #4b43d6;
 }
 
 * {
   box-sizing: border-box;
 }
 
-html,
-body {
+/* 베이스 오프화이트는 html에, body는 투명 — 그 사이로 앰비언트 배경이 흐른다 */
+html {
   margin: 0;
   padding: 0;
   min-height: 100%;
   background: var(--canvas);
+}
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: transparent;
   color: var(--ink);
   font-family: -apple-system, "Apple SD Gothic Neo", "Pretendard", sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -21,4 +28,78 @@ body {
 
 a {
   color: inherit;
+}
+
+/* ─── 앰비언트: 무한한 영감 — 흐르는 인디고 오로라 + 떠오르는 나비 날개 ─── */
+.nv-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.nv-aurora {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  will-change: transform;
+}
+.nv-aurora.a1 {
+  width: 48vmax;
+  height: 48vmax;
+  left: -14vmax;
+  top: -16vmax;
+  background: radial-gradient(circle, #4b43d6 0%, transparent 70%);
+  opacity: 0.16;
+  animation: nvDrift1 26s ease-in-out infinite alternate;
+}
+.nv-aurora.a2 {
+  width: 42vmax;
+  height: 42vmax;
+  right: -14vmax;
+  bottom: -14vmax;
+  background: radial-gradient(circle, #7a4de0 0%, transparent 70%);
+  opacity: 0.14;
+  animation: nvDrift2 32s ease-in-out infinite alternate;
+}
+.nv-aurora.a3 {
+  width: 34vmax;
+  height: 34vmax;
+  left: 42%;
+  top: 32%;
+  background: radial-gradient(circle, #4b43d6 0%, transparent 72%);
+  opacity: 0.08;
+  animation: nvDrift3 38s ease-in-out infinite alternate;
+}
+@keyframes nvDrift1 {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(8vmax, 6vmax) scale(1.15); }
+}
+@keyframes nvDrift2 {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(-7vmax, -5vmax) scale(1.12); }
+}
+@keyframes nvDrift3 {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(-6vmax, 7vmax) scale(1.2); }
+}
+.nv-fly {
+  position: absolute;
+  bottom: -8%;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation-name: nvFly;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes nvFly {
+  0% { transform: translateY(0) translateX(0) rotate(-10deg); opacity: 0; }
+  12% { opacity: var(--op, 0.1); }
+  50% { transform: translateY(-58vh) translateX(3vw) rotate(10deg); }
+  88% { opacity: var(--op, 0.1); }
+  100% { transform: translateY(-116vh) translateX(-2vw) rotate(-6deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nv-aurora { animation: none; }
+  .nv-fly { display: none; }
 }

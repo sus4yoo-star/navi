@@ -105,11 +105,11 @@ export default function Today() {
       </div>
 
       <div className="nv-wrap" style={{ paddingTop: 22 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-.02em", margin: "0 0 4px" }}>
-          오늘의 브리핑
+        <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-.025em", margin: "0 0 4px" }}>
+          오늘의 영감
         </h1>
         <p style={{ fontSize: 14, color: C.sub, margin: "0 0 14px", lineHeight: 1.6 }}>
-          매일 아침, 나비가 당신의 채널을 새로 읽고 오늘 뭘 만들지 정해와요.
+          바깥을 정찰해 영감을 길어오고, 오늘 만들 영상까지 — 나비가 매일 가져와요.
         </p>
 
         {phase === "ready" && profile && (
