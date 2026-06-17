@@ -6,7 +6,39 @@
 import { useState, useEffect, useCallback } from "react";
 import { C } from "@/lib/ui";
 
-type Video = { id: string; title: string; views: number; date: string; format: string };
+// 서버가 (타임아웃 등으로) HTML 오류 페이지를 줘도 안 깨지게 안전 파싱
+async function callJson(url: string, body: unknown) {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const text = await r.text();
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    /* HTML 등 비-JSON */
+  }
+  if (!r.ok || !data) {
+    const msg =
+      data?.error ||
+      (r.status === 502 || r.status === 504 || r.status === 500
+        ? "분석이 오래 걸려 시간이 초과됐어요. 짧은 영상으로 다시 시도해 주세요."
+        : "분석에 실패했어요. 다시 시도해 주세요.");
+    throw new Error(msg);
+  }
+  return data;
+}
+
+type Video = {
+  id: string;
+  title: string;
+  views: number;
+  date: string;
+  format: string;
+  thumb?: string;
+};
 type Sol = {
   read?: string;
   patterns?: { point: string; evidence: string }[];
@@ -57,13 +89,7 @@ export default function Solution({
     setDeepId(null);
     setDeep(null);
     try {
-      const r = await fetch("/api/channel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelUrl, tone, purpose, aspiration }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "분석에 실패했어요.");
+      const j = await callJson("/api/channel", { channelUrl, tone, purpose, aspiration });
       setChannel(j.channel || null);
       setVideos(j.videos || []);
       setSol(j.solution || null);
@@ -89,13 +115,10 @@ export default function Solution({
     setDeepErr("");
     setDeepLoading(true);
     try {
-      const r = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoUrl: `https://www.youtube.com/watch?v=${v.id}`, channelUrl }),
+      const j = await callJson("/api/analyze", {
+        videoUrl: `https://www.youtube.com/watch?v=${v.id}`,
+        channelUrl,
       });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "분석에 실패했어요.");
       setDeep(j.analysis || null);
     } catch (e: any) {
       setDeepErr(e.message);
@@ -141,8 +164,22 @@ export default function Solution({
           {videos.map((v, i) => (
             <div key={v.id} className={"nv-row " + (i ? "" : "first")}>
               <div className="nv-vid">
-                <span className={"nv-badge " + (v.format === "쇼츠" ? "s" : "l")}>{v.format}</span>
-                <span className="nv-vid-title">{v.title}</span>
+                {v.thumb ? (
+                  <img className="nv-thumb" src={v.thumb} alt="" loading="lazy" />
+                ) : (
+                  <div className="nv-thumb nv-thumb-empty" />
+                )}
+                <div className="nv-vid-main">
+                  <div className="nv-vid-head">
+                    <span className={"nv-badge " + (v.format === "쇼츠" ? "s" : "l")}>
+                      {v.format}
+                    </span>
+                    <span className="nv-vid-title">{v.title}</span>
+                  </div>
+                  <div className="nv-mono nv-vid-meta">
+                    조회 {v.views.toLocaleString()} · {v.date}
+                  </div>
+                </div>
                 <button
                   className="nv-ghost nv-vid-btn"
                   onClick={() => deepDive(v)}
@@ -150,9 +187,6 @@ export default function Solution({
                 >
                   {deepId === v.id ? (deepLoading ? "보는 중…" : "닫기") : "자세히"}
                 </button>
-              </div>
-              <div className="nv-mono nv-vid-meta">
-                조회 {v.views.toLocaleString()} · {v.date}
               </div>
               {deepId === v.id && (
                 <div className="nv-deep">
@@ -371,10 +405,15 @@ const css = `
 .nv-badge{display:inline-block;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:6px;margin-right:8px;vertical-align:middle}
 .nv-badge.s{background:#EAF7F0;color:#1F9E6B;border:1px solid #BFE9D5}
 .nv-badge.l{background:${C.accentTint};color:${C.accentInk};border:1px solid #CFCBF6}
-.nv-vid{display:flex;align-items:center;gap:6px}
-.nv-vid-title{font-size:14px;color:${C.ink};font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nv-vid-btn{flex:none;padding:5px 11px}
-.nv-vid-meta{font-size:12px;color:${C.sub};margin-top:4px}
+.nv-vid{display:flex;align-items:center;gap:12px}
+.nv-thumb{width:108px;height:61px;border-radius:9px;object-fit:cover;background:#E7E9EE;flex:none;border:1px solid ${C.line}}
+.nv-thumb-empty{background:linear-gradient(135deg,#EDEFF3,#E3E6EC)}
+.nv-vid-main{flex:1;min-width:0}
+.nv-vid-head{display:flex;align-items:center;gap:7px}
+.nv-vid-title{font-size:14px;color:${C.ink};font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nv-vid-btn{flex:none;padding:6px 12px;align-self:center}
+.nv-vid-meta{font-size:12px;color:${C.sub};margin-top:5px}
+@media (max-width:520px){.nv-thumb{width:84px;height:47px}}
 .nv-deep{margin-top:12px;padding-top:12px;border-top:1px dashed ${C.line}}
 .nv-deep-block{background:${C.canvas};border:1px solid ${C.line};border-radius:11px;padding:14px 16px;margin-bottom:10px}
 .nv-copy{background:transparent;border:none;color:${C.accent};font-size:12px;cursor:pointer;padding:2px 4px;font-family:inherit;font-weight:600}

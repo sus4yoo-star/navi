@@ -68,6 +68,7 @@ async function getRecent(uploadsId: string, max = 10) {
     const sec = isoToSec(x.contentDetails?.duration || "");
     const isShort =
       (sec > 0 && sec <= 60) || /#shorts/i.test(x.snippet.title + (x.snippet.description || ""));
+    const th = x.snippet.thumbnails || {};
     return {
       id: x.id as string,
       title: x.snippet.title as string,
@@ -75,6 +76,7 @@ async function getRecent(uploadsId: string, max = 10) {
       date: (x.snippet.publishedAt as string)?.slice(0, 10),
       durationSec: sec,
       format: isShort ? "쇼츠" : "롱폼",
+      thumb: (th.medium || th.high || th.default)?.url || "",
     };
   });
 }
