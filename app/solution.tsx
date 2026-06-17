@@ -124,17 +124,18 @@ export default function Solution({
         .finally(() => setBenchLoading(false));
     }
 
-    // 2단계: 진단·처방 (모델 — 뒤이어 채워짐)
+    // 2단계: 진단·처방 (백그라운드 + 폴링 — LLM이 동기 함수 제한을 넘김)
     setSolLoading(true);
     try {
-      const s = await callJson("/api/solution", {
+      const { id } = await callJson("/api/solution/start", {
         channel: base.channel,
         videos: base.videos,
         tone,
         purpose,
         aspiration,
       });
-      setSol(s.solution || null);
+      const job = await pollJob(id);
+      setSol(job?.analysis || null);
     } catch (e: any) {
       setErr(e.message);
     } finally {
@@ -169,8 +170,8 @@ export default function Solution({
           channelUrl,
           format: v.format,
         });
-        const analysis = await pollAnalysis(id, v.id);
-        if (analysis) setDeep(analysis);
+        const job = await pollJob(id, () => deepIdRef.current === v.id);
+        if (job?.analysis) setDeep(job.analysis);
       }
     } catch (e: any) {
       setDeepErr(e.message);
@@ -179,20 +180,23 @@ export default function Solution({
     }
   }
 
-  // 백그라운드 작업이 끝날 때까지 상태를 주기적으로 확인(최대 약 5분)
-  async function pollAnalysis(id: string, videoId: string): Promise<Analysis | null> {
+  // 백그라운드 작업이 끝날 때까지 상태를 주기적으로 확인(폴링, 최대 약 5분).
+  // done이면 작업 행 전체({analysis, video, channel})를 반환. shouldGo()가 false면 중단.
+  async function pollJob(
+    id: string,
+    shouldGo?: () => boolean
+  ): Promise<{ analysis: any; video?: any; channel?: any } | null> {
     const started = Date.now();
     while (Date.now() - started < 5 * 60 * 1000) {
       await new Promise((r) => setTimeout(r, 3500));
-      // 사용자가 그새 닫았거나 다른 영상을 열면 폴링 중단
-      if (deepIdRef.current !== videoId) return null;
+      if (shouldGo && !shouldGo()) return null;
       const r = await fetch(`/api/analyze/status?id=${id}`);
       const j = await r.json().catch(() => null);
       if (!j) continue;
-      if (j.status === "done") return j.analysis || null;
-      if (j.status === "error") throw new Error(j.error || "영상을 분석하지 못했어요.");
+      if (j.status === "done") return j;
+      if (j.status === "error") throw new Error(j.error || "처리하지 못했어요.");
     }
-    throw new Error("분석이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.");
+    throw new Error("처리가 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.");
   }
 
   return (
