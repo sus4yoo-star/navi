@@ -246,10 +246,13 @@ type Radar = {
     recent60: number;
     avgViews: number;
     shortsPct: number;
-    top?: { title: string; views: number } | null;
+    url?: string;
+    top?: { title: string; views: number; url?: string } | null;
   }[];
   mine?: { name: string; subs: number; avgViews: number; shortsPct: number };
   landscape?: string;
+  position?: string;
+  diagnosis?: { point: string; evidence: string }[];
   inspirations?: { from: string; insight: string; apply: string; ref?: string }[];
 };
 type Analysis = {
@@ -565,6 +568,134 @@ export default function Solution({
         </div>
       )}
 
+      {/* 중심축 — 니치 레이더: 비슷한 결의 지금 활발한 채널들을 한눈에 + 영감 */}
+      {(radarLoading || radar || radarErr) && (
+        <div className="nv-card nv-radar">
+          <div className="nv-hero-top">
+            <div>
+              <div className="nv-hero-eyebrow">
+                <Wing size={15} />
+                <span className="nv-mono">니치 레이더 · 바깥부터 본다</span>
+              </div>
+              <h2 className="nv-hero-title">비슷한 채널은 지금 이렇게 한다</h2>
+            </div>
+            {channel && (radar || radarErr) && (
+              <button
+                className="nv-replan"
+                onClick={() => startRadar(channel, videos, true)}
+                disabled={radarLoading}
+              >
+                {radarLoading ? "정찰 중…" : "다시 정찰"}
+              </button>
+            )}
+          </div>
+
+          {radarLoading && !radar && (
+            <div className="nv-running" style={{ margin: "14px 2px 4px" }}>
+              <span className="nv-pulse" /> 비슷한 결의 지금 활발한 채널들을 정찰하는 중…
+            </div>
+          )}
+          {radarErr && !radarLoading && (
+            <div style={{ marginTop: 12 }}>
+              <p className="nv-err" style={{ margin: "0 0 10px" }}>{radarErr}</p>
+              {channel && (
+                <button className="nv-btn" onClick={() => startRadar(channel, videos, true)}>
+                  다시 정찰
+                </button>
+              )}
+            </div>
+          )}
+
+          {radar?.landscape && (
+            <p className="nv-reason" style={{ margin: "12px 0 0", color: C.ink }}>{radar.landscape}</p>
+          )}
+
+          {!!radar?.cohort?.length && (
+            <div className="nv-rt">
+              <div className="nv-rt-row nv-rt-head">
+                <span>채널 · 대표 영상</span>
+                <span>구독자</span>
+                <span>평균조회</span>
+                <span>최근60일</span>
+              </div>
+              {radar.mine && (
+                <div className="nv-rt-row nv-rt-mine">
+                  <span className="nv-rt-name">내 채널</span>
+                  <span className="nv-mono">{radar.mine.subs.toLocaleString()}</span>
+                  <span className="nv-mono">{radar.mine.avgViews.toLocaleString()}</span>
+                  <span className="nv-mono">—</span>
+                </div>
+              )}
+              {radar.cohort.map((c, i) => (
+                <div className="nv-rt-row" key={i}>
+                  <span className="nv-rt-name">
+                    {c.url ? (
+                      <a href={c.url} target="_blank" rel="noopener noreferrer" title={c.name}>
+                        {c.name}
+                      </a>
+                    ) : (
+                      c.name
+                    )}
+                    {c.top &&
+                      (c.top.url ? (
+                        <a className="nv-rt-top" href={c.top.url} target="_blank" rel="noopener noreferrer">
+                          ▶ {c.top.title}
+                        </a>
+                      ) : (
+                        <span className="nv-rt-top">{c.top.title}</span>
+                      ))}
+                  </span>
+                  <span className="nv-mono">{c.subs.toLocaleString()}</span>
+                  <span className="nv-mono">{c.avgViews.toLocaleString()}</span>
+                  <span className="nv-mono">{c.recent60}편</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {radar?.inspirations?.map((ins, i) => {
+            const url = radar.cohort?.find((c) => c.name === ins.from)?.url;
+            return (
+              <div key={i} className="nv-insp">
+                <div className="nv-cue-row">
+                  {url ? (
+                    <a className="nv-src" href={url} target="_blank" rel="noopener noreferrer">
+                      {ins.from} ↗
+                    </a>
+                  ) : (
+                    <span className="nv-src">{ins.from}</span>
+                  )}
+                </div>
+                <p className="nv-strat-pt">{ins.insight}</p>
+                <div className="nv-firsthook" style={{ marginTop: 6 }}>내 채널엔 · {ins.apply}</div>
+                {ins.ref && <p className="nv-evi-q" style={{ marginTop: 6 }}>근거 · {ins.ref}</p>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 내 위치 · 진단 — 코호트 대비 근거 기반 개선점 */}
+      {(radar?.position || !!radar?.diagnosis?.length) && (
+        <div className="nv-card">
+          <span className="nv-mono nv-eyebrow nv-eyebrow-accent">내 위치 · 진단</span>
+          {radar?.position && (
+            <p className="nv-reason" style={{ margin: "10px 0 0", color: C.ink }}>{radar.position}</p>
+          )}
+          {!!radar?.diagnosis?.length && (
+            <>
+              <p className="nv-h" style={{ marginTop: 16 }}>개선점</p>
+              {radar.diagnosis.map((d, i) => (
+                <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                  <div className="nv-strat-pt">{d.point}</div>
+                  <div className="nv-mono nv-evi">근거 · {d.evidence}</div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
       {/* 히어로 — 작가(사전조사)+PD(기획): 이번 주 만들 영상 */}
       {(planLoading || plan || planErr) && (
         <div className="nv-card nv-hero">
@@ -671,92 +802,6 @@ export default function Solution({
               ))}
             </Collapse>
           )}
-        </div>
-      )}
-
-      {/* 니치 레이더 — 비슷한 결의 지금 활발한 채널들을 한눈에 + 영감 */}
-      {(radarLoading || radar || radarErr) && (
-        <div className="nv-card nv-radar">
-          <div className="nv-hero-top">
-            <div>
-              <div className="nv-hero-eyebrow">
-                <Wing size={15} />
-                <span className="nv-mono">니치 레이더</span>
-              </div>
-              <h2 className="nv-hero-title" style={{ fontSize: 18 }}>
-                비슷한 채널은 지금 이렇게 한다
-              </h2>
-            </div>
-            {channel && (radar || radarErr) && (
-              <button
-                className="nv-replan"
-                onClick={() => startRadar(channel, videos, true)}
-                disabled={radarLoading}
-              >
-                {radarLoading ? "정찰 중…" : "다시 정찰"}
-              </button>
-            )}
-          </div>
-
-          {radarLoading && !radar && (
-            <div className="nv-running" style={{ margin: "14px 2px 4px" }}>
-              <span className="nv-pulse" /> 비슷한 결의 지금 활발한 채널들을 정찰하는 중…
-            </div>
-          )}
-          {radarErr && !radarLoading && (
-            <div style={{ marginTop: 12 }}>
-              <p className="nv-err" style={{ margin: "0 0 10px" }}>{radarErr}</p>
-              {channel && (
-                <button className="nv-btn" onClick={() => startRadar(channel, videos, true)}>
-                  다시 정찰
-                </button>
-              )}
-            </div>
-          )}
-
-          {radar?.landscape && (
-            <p className="nv-reason" style={{ margin: "12px 0 0", color: C.ink }}>
-              {radar.landscape}
-            </p>
-          )}
-
-          {!!radar?.cohort?.length && (
-            <div className="nv-rt">
-              <div className="nv-rt-row nv-rt-head">
-                <span>채널</span>
-                <span>구독자</span>
-                <span>평균조회</span>
-                <span>최근60일</span>
-              </div>
-              {radar.mine && (
-                <div className="nv-rt-row nv-rt-mine">
-                  <span className="nv-rt-name">내 채널</span>
-                  <span className="nv-mono">{radar.mine.subs.toLocaleString()}</span>
-                  <span className="nv-mono">{radar.mine.avgViews.toLocaleString()}</span>
-                  <span className="nv-mono">—</span>
-                </div>
-              )}
-              {radar.cohort.map((c, i) => (
-                <div className="nv-rt-row" key={i}>
-                  <span className="nv-rt-name" title={c.name}>{c.name}</span>
-                  <span className="nv-mono">{c.subs.toLocaleString()}</span>
-                  <span className="nv-mono">{c.avgViews.toLocaleString()}</span>
-                  <span className="nv-mono">{c.recent60}편</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {radar?.inspirations?.map((ins, i) => (
-            <div key={i} className="nv-insp">
-              <div className="nv-cue-row">
-                <span className="nv-src">{ins.from}</span>
-              </div>
-              <p className="nv-strat-pt">{ins.insight}</p>
-              <div className="nv-firsthook" style={{ marginTop: 6 }}>내 채널엔 · {ins.apply}</div>
-              {ins.ref && <p className="nv-evi-q" style={{ marginTop: 6 }}>근거 · {ins.ref}</p>}
-            </div>
-          ))}
         </div>
       )}
 
@@ -1380,7 +1425,13 @@ const css = `
 .nv-rt-row span:not(.nv-rt-name){text-align:right;color:${C.ink};font-size:12.5px}
 .nv-rt-head{background:#FAFAFC;font-size:11px;color:${C.faint};letter-spacing:.04em;font-weight:700}
 .nv-rt-head span{color:${C.faint} !important}
-.nv-rt-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:${C.ink}}
+.nv-rt-name{min-width:0;display:flex;flex-direction:column;gap:2px;font-weight:600;color:${C.ink}}
+.nv-rt-name>a,.nv-rt-name>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nv-rt-name a{color:${C.ink};text-decoration:none;border-bottom:1px solid ${C.line}}
+.nv-rt-name a:hover{color:${C.accent};border-color:${C.accent}}
+.nv-rt-top{font-size:11px;font-weight:500;color:${C.live} !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0 !important;text-decoration:none}
+.nv-rt-top:hover{text-decoration:underline}
+a.nv-src{text-decoration:none}
 .nv-rt-mine{background:${C.accentTint}}
 .nv-rt-mine .nv-rt-name{color:${C.accentInk}}
 .nv-insp{border:1px solid ${C.line};border-left:3px solid ${C.live};border-radius:11px;padding:14px 16px;margin-top:12px;background:#fff;box-shadow:0 1px 2px rgba(20,23,28,.04)}

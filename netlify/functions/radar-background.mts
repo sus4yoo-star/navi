@@ -79,6 +79,7 @@ async function recentActivity(uploads: string) {
   if (!ids) return null;
   const vj = await getJSON(`${API}/videos?part=snippet,statistics,contentDetails&id=${ids}&key=${YT}`);
   const vids = (vj.items || []).map((x: any) => ({
+    id: x.id as string,
     title: x.snippet.title as string,
     views: Number(x.statistics?.viewCount ?? 0),
     published: x.snippet.publishedAt as string,
@@ -94,14 +95,17 @@ async function recentActivity(uploads: string) {
 }
 
 const SYSTEM = `당신은 '나비', 한국 유튜브 크리에이터의 AI 성장 PD입니다. 크리에이터가 '우물 안 개구리'가 되지 않게,
-비슷한 결의 '지금 활발한' 다른 채널들을 정찰해 한눈에 비교해 주고, 그들이 지금 무엇으로 뜨는지에서 영감을 끌어옵니다.
+비슷한 결의 '지금 활발한' 다른 채널들을 정찰해 한눈에 비교해 주고, 거기서 내 위치를 진단하고 영감을 끌어옵니다.
 주어진 [내 채널]과 [비슷한 활성 채널들]의 실제 데이터만 근거로 합니다. 수치·사실을 지어내지 마세요.
 출력은 JSON 하나만. 그 외 텍스트·코드펜스 금지.
 {
- "landscape":"지금 이 판의 흐름과 내 위치를 짚는 2~3문장(구체 수치/채널 언급)",
+ "landscape":"지금 이 판의 흐름을 짚는 2~3문장(구체 수치/채널 언급)",
+ "position":"코호트 대비 내 채널이 지금 어디에 있는지 2~3문장(구독자·평균조회·쇼츠비중 등 수치로)",
+ "diagnosis":[{"point":"내 채널의 개선점/문제 한 줄","evidence":"근거 — 내 수치 vs 코호트, 또는 내 콘텐츠 특징(구체적으로)"}],
  "inspirations":[{"from":"채널명","insight":"이 채널이 지금 이렇게 해서 뜬다(근거)","apply":"내 채널엔 이렇게 적용","ref":"근거가 된 그 채널의 영상 제목"}]
 }
-inspirations는 3~5개. 베끼라는 게 아니라 '내 색깔로' 변주하도록.`;
+diagnosis는 3~4개로, 반드시 코호트 비교나 내 데이터에 근거를 댈 것. inspirations는 3~5개, 베끼지 말고 '내 색깔로' 변주하도록.
+inspirations의 from은 반드시 위 코호트에 있는 채널명 그대로 쓸 것.`;
 
 function extractJson(text: string) {
   const t = text.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -166,7 +170,10 @@ export default async (req: Request) => {
         recent60: c.recent60,
         avgViews: c.avgViews,
         shortsPct: c.shortsPct,
-        top: c.top ? { title: c.top.title, views: c.top.views } : null,
+        url: `https://www.youtube.com/channel/${c.id}`,
+        top: c.top
+          ? { title: c.top.title, views: c.top.views, url: `https://www.youtube.com/watch?v=${c.top.id}` }
+          : null,
       }));
 
     const myAvg = list.length ? Math.round(list.reduce((s, v) => s + v.views, 0) / list.length) : 0;
@@ -177,7 +184,7 @@ export default async (req: Request) => {
       shortsPct: list.length ? Math.round((list.filter((v) => v.format === "쇼츠").length / list.length) * 100) : 0,
     };
 
-    let result: any = { cohort, mine, landscape: "", inspirations: [] };
+    let result: any = { cohort, mine, landscape: "", position: "", diagnosis: [], inspirations: [] };
 
     if (cohort.length) {
       const cohortText = cohort
