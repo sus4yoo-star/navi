@@ -13,13 +13,13 @@ const brand = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "navi — 크리에이터에게 무한한 영감을",
+  title: "NAVI — 크리에이터에게 무한한 영감을",
   description: "바깥에서 영감을 길어와 오늘 만들 영상까지 — 크리에이터에게 무한한 영감을 주는 나비",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "navi",
+    title: "NAVI",
   },
   icons: {
     icon: "/icon.svg",

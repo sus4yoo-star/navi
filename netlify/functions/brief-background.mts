@@ -178,7 +178,7 @@ channels: 내 채널이 '차용할 수 있는 영감'을 주는 채널 4~6개를
  · analysis = 이 채널이 지금 잘 되는 '구체적 기법' 1~2가지(막연한 말 금지, 무엇을 어떻게 하는지).
  · apply = 그 기법을 '내 채널에 어떻게 차용할지' 구체적으로(내 소재·톤으로 변주) + 그게 열어줄 가능성을 한 호흡에. 베껴라가 아니라 '너라면 이렇게 더 잘할 수 있다'는 확신을 주듯.
  · 단, 방송사·뉴스·단순 리포스트처럼 옮길 만한 기법이 없는 채널은 제외. 최소 4개를 목표로.
-diagnosis·strategy·todo는 3개 내외, ideas는 3개. source는 "트렌드"/"댓글"/"성과" 중.
+diagnosis·strategy·todo는 3개 내외, ideas는 3개. ideas에는 반드시 '롱폼' 1개 이상을 포함하고, 롱폼을 가장 먼저(배열 맨 앞) 두세요. source는 "트렌드"/"댓글"/"성과" 중.
 코호트(channels)가 비면 landscape는 "비슷한 활발한 채널을 충분히 찾지 못해 우선 내 채널 데이터로 진단합니다." 정도로 짧게 쓰고, 사용자에게 데이터 입력을 요구하는 말은 절대 쓰지 마세요.`;
 
 function extractJson(text: string) {
@@ -432,16 +432,26 @@ export default async (req: Request) => {
       }
     }
     if (!parsed) throw new Error("브리핑 결과를 읽지 못했어요. 잠시 후 다시 시도해 주세요.");
-    // 모델이 고른 '진짜 peer'만 코호트로 (후보 통계에 분석·적용을 합친다)
+    // 모델이 고른 '진짜 peer'만 코호트로 (후보 통계에 분석·적용을 합친다). 같은 채널 중복 제거.
     const sel = (parsed.channels || []) as { name: string; analysis?: string; apply?: string }[];
+    const usedC = new Set<string>();
     const cohort = sel
       .map((s) => {
         const c = candCards.find((x) => norm(x.name) === norm(s.name));
-        return c ? { ...c, analysis: s.analysis || "", apply: s.apply || "" } : null;
+        if (!c || usedC.has(c.url)) return null; // 같은 채널 두 번 방지
+        usedC.add(c.url);
+        return { ...c, analysis: s.analysis || "", apply: s.apply || "" };
       })
       .filter(Boolean)
       .slice(0, 6);
     delete parsed.channels;
+
+    // 이번 주 만들 영상: 롱폼이 최소 1개, 그리고 가장 앞에 오도록 정렬
+    if (Array.isArray(parsed.ideas)) {
+      const longs = parsed.ideas.filter((i: any) => i.format === "롱폼");
+      const shorts = parsed.ideas.filter((i: any) => i.format !== "롱폼");
+      if (longs.length) parsed.ideas = [longs[0], ...longs.slice(1), ...shorts];
+    }
     result = { cohort, mine, ...parsed };
 
     await sb.from("analyses").update({ status: "done", result }).eq("id", id);

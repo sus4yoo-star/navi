@@ -103,7 +103,7 @@ export default function Onboarding() {
         <div className="nv-wrap nv-topbar-in">
           <Link href="/" className="nv-brand-link">
             <Wing />
-            <span className="nv-brand">navi</span>
+            <span className="nv-brand">NAVI</span>
           </Link>
           <div className="nv-top-right">
             {authed ? (

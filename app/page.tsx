@@ -103,7 +103,7 @@ export default function Home() {
         <div className="nv-wrap nv-hero-top">
           <Link href="/" className="nv-brand-link">
             <Wing />
-            <span className="nv-brand">navi</span>
+            <span className="nv-brand">NAVI</span>
           </Link>
           <div className="nv-hero-nav">
             {authed && (

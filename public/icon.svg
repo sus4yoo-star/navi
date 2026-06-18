@@ -1,7 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#4B43D6"/>
-  <g transform="translate(36,76) scale(20)">
-    <polygon points="11,9 1.5,2.5 4,15.5" fill="#FFFFFF"/>
-    <polygon points="11,9 20.5,2.5 18,15.5" fill="#FFFFFF" opacity="0.55"/>
+  <defs>
+    <linearGradient id="wg" x1="113" y1="78" x2="399" y2="312" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4B43D6"/>
+      <stop offset="1" stop-color="#7A5AF0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#FFFFFF"/>
+  <rect x="3" y="3" width="506" height="506" rx="109" fill="none" stroke="#E9E6DF" stroke-width="3"/>
+  <g transform="translate(113,78) scale(13)">
+    <polygon points="11,9 1.5,2.5 4,15.5" fill="url(#wg)"/>
+    <polygon points="11,9 20.5,2.5 18,15.5" fill="url(#wg)" opacity="0.5"/>
   </g>
+  <text x="256" y="410" text-anchor="middle" font-family="'Space Grotesk',system-ui,-apple-system,sans-serif" font-size="92" font-weight="700" letter-spacing="6" fill="#1A1A20">NAVI</text>
 </svg>
