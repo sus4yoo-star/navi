@@ -49,15 +49,27 @@ export default async (req: Request) => {
         idea.hook || "-"
       }\n왜 먹히는지: ${idea.why || "-"}` + (niche ? `\n채널 분야: ${niche}` : "");
 
-    const msg = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 2000,
-      system: SYSTEM,
-      messages: [{ role: "user", content }],
-    });
-    const raw = msg.content.filter((b) => b.type === "text").map((b: any) => b.text).join("\n");
-    const script = extractJson(raw);
-    if (!script) throw new Error("대본을 읽지 못했어요.");
+    // 롱폼은 대본이 길어 토큰이 부족하면 JSON이 잘린다 → 넉넉히 + 1회 재시도(prefill).
+    let script: any = null;
+    for (let attempt = 0; attempt < 2 && !script; attempt++) {
+      try {
+        const msg = await anthropic.messages.create({
+          model: MODEL,
+          max_tokens: 4096,
+          system: SYSTEM,
+          messages: [
+            { role: "user", content },
+            ...(attempt > 0 ? [{ role: "assistant" as const, content: "{" }] : []),
+          ],
+        });
+        let raw = msg.content.filter((b) => b.type === "text").map((b: any) => b.text).join("\n");
+        if (attempt > 0) raw = "{" + raw;
+        script = extractJson(raw);
+      } catch (e: any) {
+        console.error(`script 호출 실패(시도 ${attempt + 1}):`, e?.message || e);
+      }
+    }
+    if (!script) throw new Error("대본을 읽지 못했어요. 잠시 후 다시 시도해 주세요.");
 
     await sb.from("analyses").update({ status: "done", result: script }).eq("id", id);
   } catch (e: any) {

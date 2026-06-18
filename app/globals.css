@@ -34,6 +34,11 @@ a {
   color: inherit;
 }
 
+/* 세리프가 넓어 버튼 글씨가 줄바꿈되는 것 방지 */
+button {
+  white-space: nowrap;
+}
+
 ::selection {
   background: rgba(75, 67, 214, 0.16);
 }
