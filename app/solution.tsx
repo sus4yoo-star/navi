@@ -59,7 +59,6 @@ function delCache(key: string) {
     /* noop */
   }
 }
-const today = () => new Date().toISOString().slice(0, 10);
 
 // 백그라운드 작업이 끝날 때까지 상태를 주기적으로 확인(폴링, 최대 약 5분).
 // done이면 작업 행 전체({analysis, video, channel})를 반환. shouldGo()가 false면 중단.
@@ -332,7 +331,7 @@ export default function Solution({
   const startBrief = useCallback(
     async (ch: any, vids: Video[], force = false) => {
       if (!ch) return;
-      const key = `navi_brief_${channelUrl}_${today()}`;
+      const key = `navi_brief_${channelUrl}`; // 날짜 무관 — '다시 정찰' 전엔 저장된 그대로
       if (force) {
         delCache(key);
         setBrief(null);
@@ -655,6 +654,9 @@ export default function Solution({
           )}
         </div>
       )}
+
+      {/* 눈여겨보는 채널 — 그 채널과의 차이 + 영감 */}
+      {channel && <WatchPanel channel={channel} videos={videos} niche={niche} channelUrl={channelUrl} />}
 
       {/* 내 위치 · 진단 — 코호트 대비 근거 기반 개선점 */}
       {(brief?.position || !!brief?.diagnosis?.length) && (
@@ -1126,6 +1128,158 @@ function IdeaScript({ idea, niche }: { idea: Idea; niche?: string }) {
   );
 }
 
+type Watch = {
+  theirs?: {
+    name: string;
+    thumb?: string;
+    subs: number;
+    avgViews: number;
+    recent60: number;
+    shortsPct: number;
+    url?: string;
+    top?: { title: string; views: number; thumb?: string; url?: string } | null;
+  };
+  mine?: { name: string; subs: number; avgViews: number; shortsPct: number };
+  spark?: string;
+  differences?: { point: string; mine?: string; theirs?: string }[];
+  inspirations?: { insight: string; apply: string }[];
+};
+
+// 눈여겨보는 채널 분석 — 그 채널과 내 채널의 차이 + 그 사이 영감(백그라운드+폴링·기기 저장)
+function WatchPanel({
+  channel,
+  videos,
+  niche,
+  channelUrl,
+}: {
+  channel: { name: string; subscribers: number } | null;
+  videos: Video[];
+  niche?: string;
+  channelUrl: string;
+}) {
+  const key = `navi_watch_${channelUrl}`;
+  const [url, setUrl] = useState("");
+  const [watch, setWatch] = useState<Watch | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    const c = loadCache(key);
+    if (c?.status === "done" && c.data) {
+      setWatch(c.data.result || null);
+      setUrl(c.data.url || "");
+    }
+  }, [key]);
+
+  async function analyze() {
+    const u = url.trim();
+    if (!u || !channel) return;
+    setLoading(true);
+    setErr("");
+    setWatch(null);
+    try {
+      const r = await callJson("/api/watch/start", { channel, videos, niche, watchUrl: u });
+      const job = await pollJob(r.id);
+      const result = job?.analysis || null;
+      setWatch(result);
+      if (result) saveCache(key, { status: "done", data: { url: u, result } });
+    } catch (e: any) {
+      setErr(e?.message || "분석에 실패했어요.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function reset() {
+    setWatch(null);
+    setUrl("");
+    setErr("");
+    delCache(key);
+  }
+
+  const t = watch?.theirs;
+  const mult = t && watch?.mine?.avgViews ? t.avgViews / watch.mine.avgViews : 0;
+
+  return (
+    <div className="nv-card">
+      <span className="nv-mono nv-eyebrow nv-eyebrow-accent">눈여겨보는 채널</span>
+      <h2 className="nv-hero-title" style={{ fontSize: 20 }}>눈여겨보는 채널에서 영감 찾기</h2>
+      <p className="nv-reason" style={{ margin: "6px 0 0" }}>
+        배우고 싶은 채널 URL을 넣으면, 내 채널과의 차이와 거기서 길어올릴 영감을 짚어줄게요.
+      </p>
+
+      {!watch && (
+        <div style={{ marginTop: 14 }}>
+          <input
+            className="nv-winput"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://youtube.com/@..."
+            onKeyDown={(e) => e.key === "Enter" && analyze()}
+          />
+          <button className="nv-btn" style={{ marginTop: 10 }} onClick={analyze} disabled={loading || !url.trim()}>
+            {loading ? "정찰하는 중… (~20초)" : "이 채널에서 영감 찾기"}
+          </button>
+          {err && <p className="nv-err" style={{ marginTop: 10 }}>{err}</p>}
+        </div>
+      )}
+
+      {watch && t && (
+        <div style={{ marginTop: 14 }}>
+          <div className="nv-watch-head">
+            {t.thumb && <img className="nv-cocard-thumb" src={t.thumb} alt="" loading="lazy" />}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              {t.url ? (
+                <a href={t.url} target="_blank" rel="noopener noreferrer" className="nv-cocard-name">{t.name} ↗</a>
+              ) : (
+                <span className="nv-cocard-name">{t.name}</span>
+              )}
+              <div className="nv-mono nv-cocard-stats" style={{ margin: "2px 0 0" }}>
+                구독 {t.subs.toLocaleString()} · 평균조회 {t.avgViews.toLocaleString()} · 최근60일 {t.recent60}편
+              </div>
+            </div>
+            <button className="nv-replan" onClick={reset}>다른 채널</button>
+          </div>
+          {!!mult && (
+            <span className="nv-co-mult" style={{ marginTop: 10 }}>내 채널 평균조회의 ×{mult.toFixed(mult >= 10 ? 0 : 1)}</span>
+          )}
+
+          {watch.spark && (
+            <div className="nv-spark" style={{ marginTop: 12 }}>
+              <Wing size={18} />
+              <p>{watch.spark}</p>
+            </div>
+          )}
+
+          {!!watch.differences?.length && (
+            <>
+              <p className="nv-h" style={{ marginTop: 16 }}>내 채널과 다른 점</p>
+              {watch.differences.map((d, i) => (
+                <div key={i} className={"nv-row " + (i ? "" : "first")}>
+                  <div className="nv-strat-pt">{d.point}</div>
+                  {(d.mine || d.theirs) && (
+                    <div className="nv-diff-cmp">
+                      {d.mine && <span><b>내 채널</b> {d.mine}</span>}
+                      {d.theirs && <span><b>{t.name}</b> {d.theirs}</span>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </>
+          )}
+
+          {watch.inspirations?.map((ins, i) => (
+            <div key={i} className="nv-insp" style={{ marginTop: i ? 12 : 16 }}>
+              <p className="nv-strat-pt">{ins.insight}</p>
+              <div className="nv-firsthook" style={{ marginTop: 6 }}>이렇게 차용 · {ins.apply}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Deep({ a }: { a: Analysis }) {
   // 서버가 '센 것부터' 정렬해 보내므로 그 순서를 그대로 유지한다.
   const shorts = a.shorts || [];
@@ -1310,6 +1464,13 @@ const css = `
 .nv-spark p{margin:0;font-family:var(--font-serif);font-size:16.5px;line-height:1.65;font-weight:500;letter-spacing:-.005em;color:${C.accentInk}}
 .nv-radar .nv-hero-eyebrow{color:${C.live}}
 .nv-radar-promise{margin:9px 0 0;font-size:13.5px;line-height:1.6;color:${C.sub};max-width:480px}
+.nv-winput{width:100%;box-sizing:border-box;background:#fff;border:1px solid ${C.line};border-radius:11px;padding:13px 15px;font-size:14.5px;color:${C.ink};font-family:inherit;outline:none;transition:border-color .14s,box-shadow .14s}
+.nv-winput::placeholder{color:${C.faint}}
+.nv-winput:focus{border-color:${C.accent};box-shadow:0 0 0 3px ${C.accentTint}}
+.nv-watch-head{display:flex;align-items:center;gap:11px}
+.nv-diff-cmp{display:flex;flex-direction:column;gap:3px;margin-top:5px;font-size:12.5px;color:${C.sub};line-height:1.55}
+.nv-diff-cmp b{color:${C.ink};font-weight:700;margin-right:5px}
+.nv-insp{border:1px solid ${C.line};border-left:2px solid ${C.live};border-radius:13px;padding:14px 16px;background:#fff;box-shadow:0 1px 2px rgba(26,26,32,.03)}
 a.nv-src{text-decoration:none}
 .nv-co-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;font-size:11.5px;color:${C.sub}}
 .nv-co-swipe{color:${C.live};font-weight:600;white-space:nowrap;font-size:11px}
