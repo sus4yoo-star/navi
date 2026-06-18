@@ -13,6 +13,7 @@ const brand = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://navi.theamov.com"),
   title: "NAVI — 크리에이터에게 무한한 영감을",
   description: "바깥에서 영감을 길어와 오늘 만들 영상까지 — 크리에이터에게 무한한 영감을 주는 나비",
   manifest: "/manifest.json",
@@ -24,6 +25,23 @@ export const metadata: Metadata = {
   icons: {
     icon: "/icon.svg",
     apple: "/icon-192.png",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "NAVI",
+    title: "NAVI — 크리에이터에게 무한한 영감을",
+    description: "바깥에서 영감을 길어와 오늘 만들 영상까지 — 크리에이터의 AI 성장 파트너.",
+    url: "https://navi.theamov.com",
+    locale: "ko_KR",
+    images: [
+      { url: "/og.png", width: 1200, height: 630, alt: "NAVI — 크리에이터에게 무한한 영감을" },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NAVI — 크리에이터에게 무한한 영감을",
+    description: "바깥에서 영감을 길어와 오늘 만들 영상까지 — 크리에이터의 AI 성장 파트너.",
+    images: ["/og.png"],
   },
 };
 
