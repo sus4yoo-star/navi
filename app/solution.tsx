@@ -144,15 +144,26 @@ function downloadTextCard(
   ctx.fillStyle = "#8A8F99";
   ctx.font = `600 26px ${FONT}`;
   ctx.fillText("나비", pad, H - pad);
-  c.toBlob((blob) => {
+  c.toBlob(async (blob) => {
     if (!blob) return;
+    const file = new File([blob], (opts?.filename || "navi") + ".png", { type: "image/png" });
+    // 모바일: 공유 시트 → '이미지(사진)에 저장' 가능. 지원 안 하면 다운로드.
+    const nav = navigator as any;
+    if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
+      try {
+        await nav.share({ files: [file] });
+        return;
+      } catch {
+        /* 사용자가 취소했거나 실패 → 아래 다운로드로 폴백 */
+      }
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = (opts?.filename || "navi") + ".png";
+    a.download = file.name;
     a.click();
     URL.revokeObjectURL(url);
-  });
+  }, "image/png");
 }
 
 // 최근 영상(실데이터)으로 채널 현황을 계산 — 지어내지 않고 숫자로.
@@ -987,28 +998,8 @@ function ShortCard({ s }: { s: Short }) {
   );
 }
 
-// 기획안 한 건의 썸네일: 예시 문구 + AI 이미지 시안 생성(백그라운드+폴링)
-function IdeaThumb({ idea, niche }: { idea: Idea; niche?: string }) {
-  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
-  const [url, setUrl] = useState<string>();
-  async function gen() {
-    setState("busy");
-    try {
-      const { id } = await callJson("/api/thumbnail/start", {
-        title: idea.title,
-        concept: idea.thumbnail?.concept,
-        text: idea.thumbnail?.text,
-        niche,
-      });
-      const job = await pollJob(id);
-      const img = job?.analysis?.image;
-      if (!img) throw new Error("no image");
-      setUrl(img);
-      setState("done");
-    } catch {
-      setState("error");
-    }
-  }
+// 기획안 한 건의 썸네일 예시 — 문구 카드를 이미지로 만들어 공유/사진첩 저장
+function IdeaThumb({ idea }: { idea: Idea; niche?: string }) {
   return (
     <div className="nv-thumbsug">
       <p className="nv-rp-h">썸네일 예시</p>
@@ -1018,41 +1009,20 @@ function IdeaThumb({ idea, niche }: { idea: Idea; niche?: string }) {
       {idea.thumbnail?.text && (
         <div className="nv-mono nv-copy-line" style={{ marginTop: 4 }}>문구: {idea.thumbnail.text}</div>
       )}
-      {url && (
-        <div style={{ marginTop: 10 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt="썸네일 시안" className="nv-thumbimg" />
-          <a
-            className="nv-detbtn"
-            style={{ display: "inline-block", marginTop: 8, textDecoration: "none" }}
-            href={url}
-            download="navi-썸네일.png"
-          >
-            이미지 저장
-          </a>
-        </div>
-      )}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-        <button className="nv-detbtn" onClick={gen} disabled={state === "busy"}>
-          {state === "busy" ? "그리는 중… (~30초)" : url ? "다시 생성" : "AI 썸네일 생성"}
+      {idea.thumbnail?.text && (
+        <button
+          className="nv-detbtn"
+          style={{ marginTop: 10 }}
+          onClick={() =>
+            downloadTextCard(idea.thumbnail!.text!, {
+              label: "썸네일 문구",
+              ratio: "16:9",
+              filename: "navi-썸네일문구",
+            })
+          }
+        >
+          이미지로 저장 · 공유
         </button>
-        {idea.thumbnail?.text && (
-          <button
-            className="nv-detbtn"
-            onClick={() =>
-              downloadTextCard(idea.thumbnail!.text!, {
-                label: "썸네일 문구",
-                ratio: "16:9",
-                filename: "navi-썸네일문구",
-              })
-            }
-          >
-            문구 카드 저장
-          </button>
-        )}
-      </div>
-      {state === "error" && (
-        <p className="nv-err" style={{ marginTop: 8 }}>썸네일 생성에 실패했어요. 다시 시도해 주세요.</p>
       )}
     </div>
   );
