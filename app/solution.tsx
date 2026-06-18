@@ -998,7 +998,7 @@ function ShortCard({ s }: { s: Short }) {
   );
 }
 
-// 기획안 한 건의 썸네일 예시 — 문구 카드를 이미지로 만들어 공유/사진첩 저장
+// 기획안 한 건의 썸네일 예시 — 구성·문구만 보여준다
 function IdeaThumb({ idea }: { idea: Idea; niche?: string }) {
   return (
     <div className="nv-thumbsug">
@@ -1008,21 +1008,6 @@ function IdeaThumb({ idea }: { idea: Idea; niche?: string }) {
       )}
       {idea.thumbnail?.text && (
         <div className="nv-mono nv-copy-line" style={{ marginTop: 4 }}>문구: {idea.thumbnail.text}</div>
-      )}
-      {idea.thumbnail?.text && (
-        <button
-          className="nv-detbtn"
-          style={{ marginTop: 10 }}
-          onClick={() =>
-            downloadTextCard(idea.thumbnail!.text!, {
-              label: "썸네일 문구",
-              ratio: "16:9",
-              filename: "navi-썸네일문구",
-            })
-          }
-        >
-          이미지로 저장 · 공유
-        </button>
       )}
     </div>
   );
