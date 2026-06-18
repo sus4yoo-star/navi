@@ -80,92 +80,6 @@ async function pollJob(
 }
 
 // ── 원탭 도구: 문구를 브랜드 톤 카드 이미지(PNG)로 저장 ──
-const FONT = `-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif`;
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number) {
-  const lines: string[] = [];
-  let line = "";
-  for (const w of text.split(/(\s+)/)) {
-    if (ctx.measureText(line + w).width <= maxW) {
-      line += w;
-      continue;
-    }
-    if (ctx.measureText(w).width > maxW) {
-      if (line.trim()) lines.push(line.trim());
-      let cur = "";
-      for (const ch of w) {
-        if (ctx.measureText(cur + ch).width <= maxW) cur += ch;
-        else {
-          lines.push(cur);
-          cur = ch;
-        }
-      }
-      line = cur;
-    } else {
-      if (line.trim()) lines.push(line.trim());
-      line = w;
-    }
-  }
-  if (line.trim()) lines.push(line.trim());
-  return lines;
-}
-function downloadTextCard(
-  text: string,
-  opts?: { label?: string; ratio?: "16:9" | "9:16"; filename?: string }
-) {
-  if (typeof document === "undefined" || !text) return;
-  const ratio = opts?.ratio || "16:9";
-  const W = ratio === "16:9" ? 1280 : 720;
-  const H = ratio === "16:9" ? 720 : 1280;
-  const c = document.createElement("canvas");
-  c.width = W;
-  c.height = H;
-  const ctx = c.getContext("2d");
-  if (!ctx) return;
-  ctx.fillStyle = "#F4F5F7";
-  ctx.fillRect(0, 0, W, H);
-  const pad = 72;
-  ctx.fillStyle = "#4B43D6";
-  ctx.fillRect(pad, pad, 96, 10);
-  if (opts?.label) {
-    ctx.fillStyle = "#8A8F99";
-    ctx.font = `600 24px ${FONT}`;
-    ctx.fillText(opts.label, pad, pad + 56);
-  }
-  ctx.fillStyle = "#15171C";
-  const fs = ratio === "16:9" ? 76 : 64;
-  ctx.font = `800 ${fs}px ${FONT}`;
-  const lines = wrapText(ctx, text, W - pad * 2);
-  const lh = fs * 1.32;
-  let y = (ratio === "16:9" ? 260 : 380) + fs;
-  for (const ln of lines.slice(0, ratio === "16:9" ? 5 : 9)) {
-    ctx.fillText(ln, pad, y);
-    y += lh;
-  }
-  ctx.fillStyle = "#8A8F99";
-  ctx.font = `600 26px ${FONT}`;
-  ctx.fillText("나비", pad, H - pad);
-  c.toBlob(async (blob) => {
-    if (!blob) return;
-    const file = new File([blob], (opts?.filename || "navi") + ".png", { type: "image/png" });
-    // 모바일: 공유 시트 → '이미지(사진)에 저장' 가능. 지원 안 하면 다운로드.
-    const nav = navigator as any;
-    if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
-      try {
-        await nav.share({ files: [file] });
-        return;
-      } catch {
-        /* 사용자가 취소했거나 실패 → 아래 다운로드로 폴백 */
-      }
-    }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = file.name;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, "image/png");
-}
-
 // 최근 영상(실데이터)으로 채널 현황을 계산 — 지어내지 않고 숫자로.
 function channelStats(videos: Video[], subs: number) {
   if (!videos.length) return [] as { label: string; value: string }[];
@@ -977,21 +891,6 @@ function ShortCard({ s }: { s: Short }) {
               {s.hashtags!.join(" ")}
             </div>
           )}
-          {s.onscreen && (
-            <button
-              className="nv-detbtn"
-              style={{ marginTop: 10 }}
-              onClick={() =>
-                downloadTextCard(s.onscreen!, {
-                  label: s.cue || "쇼츠 자막",
-                  ratio: "9:16",
-                  filename: "navi-자막",
-                })
-              }
-            >
-              자막 이미지 저장
-            </button>
-          )}
         </div>
       )}
     </div>
@@ -1329,22 +1228,7 @@ function Deep({ a }: { a: Analysis }) {
               <p className="nv-h" style={{ marginTop: 14 }}>썸네일</p>
               <div style={{ fontSize: 14 }}>{a.thumbnail.concept}</div>
               {a.thumbnail.text && (
-                <>
-                  <div className="nv-mono nv-copy-line">카피: {a.thumbnail.text}</div>
-                  <button
-                    className="nv-detbtn"
-                    style={{ marginTop: 10 }}
-                    onClick={() =>
-                      downloadTextCard(a.thumbnail!.text, {
-                        label: "썸네일 카피",
-                        ratio: "16:9",
-                        filename: "navi-썸네일",
-                      })
-                    }
-                  >
-                    썸네일 이미지 저장
-                  </button>
-                </>
+                <div className="nv-mono nv-copy-line">카피: {a.thumbnail.text}</div>
               )}
             </>
           )}
